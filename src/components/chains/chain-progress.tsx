@@ -1,0 +1,113 @@
+import Link from "next/link";
+import { DifficultyStars } from "@/components/quests/difficulty-stars";
+import { Check, Lock, Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CompleteQuestButton } from "@/components/quests/complete-quest-button";
+
+interface Props {
+  quests: Array<{
+    id: string;
+    title: string;
+    description: string;
+    difficulty: number;
+    xpReward: number;
+    status: string;
+    chainOrder: number | null;
+  }>;
+}
+
+export function ChainProgress({ quests }: Props) {
+  const sorted = [...quests].sort(
+    (a, b) => (a.chainOrder ?? 0) - (b.chainOrder ?? 0)
+  );
+
+  return (
+    <div className="space-y-0">
+      {sorted.map((quest, i) => {
+        const isCompleted = quest.status === "completed";
+        const isLocked = quest.status === "locked";
+        const isActive = quest.status === "active";
+        const isLast = i === sorted.length - 1;
+
+        return (
+          <div key={quest.id} className="relative flex gap-4 pb-6">
+            {/* Connector line */}
+            {!isLast && (
+              <div
+                className={cn(
+                  "absolute left-[18px] top-10 w-0.5 h-full",
+                  isCompleted ? "bg-success" : "bg-border"
+                )}
+              />
+            )}
+
+            {/* Node */}
+            <div
+              className={cn(
+                "relative z-10 w-9 h-9 flex-shrink-0 rounded-full border-2 flex items-center justify-center font-display text-sm",
+                isCompleted && "border-success bg-success/20 text-success",
+                isActive && "border-primary bg-primary/20 text-primary animate-ember-glow",
+                isLocked && "border-border bg-card text-muted-foreground"
+              )}
+            >
+              {isCompleted ? (
+                <Check className="w-4 h-4" />
+              ) : isLocked ? (
+                <Lock className="w-3.5 h-3.5" />
+              ) : (
+                i + 1
+              )}
+            </div>
+
+            {/* Card */}
+            <div className="relative flex-1 min-w-0">
+              <Link href={`/quests/${quest.id}`} className="absolute inset-0 z-10" />
+              <div
+                className={cn(
+                  "norse-card p-4 transition-all cursor-pointer relative z-20 pointer-events-none [&_button]:pointer-events-auto [&_button]:relative [&_button]:z-30",
+                  isLocked && "opacity-50",
+                  isCompleted && "border-success/30",
+                  isActive && "border-primary/40"
+                )}
+              >
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex-1">
+                    <div
+                      className={cn(
+                        "font-display text-sm md:text-base tracking-wider uppercase",
+                        isCompleted ? "text-muted-foreground line-through" : "text-foreground"
+                      )}
+                    >
+                      {quest.title}
+                    </div>
+                    {quest.description && (
+                      <p className="text-xs text-muted-foreground font-body mt-1">
+                        {quest.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 text-gold font-display text-sm">
+                    <Zap className="w-3 h-3" />
+                    {quest.xpReward}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                  <DifficultyStars difficulty={quest.difficulty} />
+                  <div className="flex items-center gap-2">
+                    {isCompleted && (
+                      <CompleteQuestButton questId={quest.id} completed size="sm" />
+                    )}
+                    {isActive && (
+                      <CompleteQuestButton questId={quest.id} size="sm" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

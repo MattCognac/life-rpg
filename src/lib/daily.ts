@@ -1,0 +1,32 @@
+import { startOfToday, startOfYesterday } from "./utils";
+
+/**
+ * Is this completion timestamp within today's window?
+ */
+export function isCompletedToday(completedAt: Date | null | undefined): boolean {
+  if (!completedAt) return false;
+  const completed = new Date(completedAt);
+  completed.setHours(0, 0, 0, 0);
+  return completed.getTime() === startOfToday().getTime();
+}
+
+/**
+ * Is the streak broken? True if last completion was before yesterday.
+ */
+export function isStreakBroken(lastCompleted: Date | null | undefined): boolean {
+  if (!lastCompleted) return false; // never started != broken
+  const last = new Date(lastCompleted);
+  last.setHours(0, 0, 0, 0);
+  return last.getTime() < startOfYesterday().getTime();
+}
+
+/**
+ * Should this daily quest be available today based on its schedule?
+ */
+export function isDailyActiveToday(dailyCron: string | null | undefined): boolean {
+  if (!dailyCron || dailyCron === "daily") return true;
+  const day = new Date().getDay(); // 0=Sun, 6=Sat
+  if (dailyCron === "weekdays") return day >= 1 && day <= 5;
+  if (dailyCron === "weekends") return day === 0 || day === 6;
+  return true;
+}

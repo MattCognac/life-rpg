@@ -1,0 +1,295 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Valheim-inspired Norse/Viking palette */
+    --background: 180 20% 5%;          /* #0a0f0f near-black */
+    --foreground: 40 30% 80%;          /* #c4b99a parchment */
+
+    --card: 180 15% 9%;                /* #151a1a */
+    --card-foreground: 40 30% 85%;
+    --card-hover: 180 12% 14%;         /* #1e2525 */
+
+    --popover: 180 15% 9%;
+    --popover-foreground: 40 30% 85%;
+
+    --primary: 20 78% 48%;             /* #dd6119 Valheim orange */
+    --primary-foreground: 40 30% 95%;
+    --primary-dark: 10 75% 38%;        /* #ad2817 */
+
+    --secondary: 180 10% 15%;
+    --secondary-foreground: 40 30% 85%;
+
+    --muted: 180 10% 15%;
+    --muted-foreground: 40 15% 55%;
+
+    --accent: 20 78% 48%;
+    --accent-foreground: 40 30% 95%;
+
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 40 30% 95%;
+
+    --success: 142 70% 50%;
+    --success-foreground: 40 30% 95%;
+
+    --gold: 32 100% 50%;               /* #ff8201 */
+    --ember: 20 100% 55%;
+
+    --border: 180 10% 18%;             /* #2a3030 */
+    --input: 180 10% 15%;
+    --ring: 20 78% 48%;
+
+    --radius: 0.25rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply bg-background text-foreground;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    background-image:
+      radial-gradient(at 20% 0%, hsl(var(--primary) / 0.08) 0, transparent 50%),
+      radial-gradient(at 80% 100%, hsl(var(--primary-dark) / 0.06) 0, transparent 50%);
+    min-height: 100vh;
+  }
+
+  /* Subtle grain/noise overlay for parchment feel */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-wider;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.4);
+    color: hsl(var(--primary-foreground));
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.6);
+  }
+}
+
+@layer components {
+  /* Angular shield-shaped clip-path for buttons */
+  .clip-shield {
+    clip-path: polygon(
+      8px 0,
+      calc(100% - 8px) 0,
+      100% 50%,
+      calc(100% - 8px) 100%,
+      8px 100%,
+      0 50%
+    );
+  }
+
+  /* Rune-panel: angular card edges */
+  .clip-rune {
+    clip-path: polygon(
+      12px 0,
+      100% 0,
+      100% calc(100% - 12px),
+      calc(100% - 12px) 100%,
+      0 100%,
+      0 12px
+    );
+  }
+
+  /* Rune heading divider */
+  .rune-divider {
+    position: relative;
+    text-align: center;
+  }
+  .rune-divider::before,
+  .rune-divider::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 40%;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      hsl(var(--primary) / 0.6),
+      transparent
+    );
+  }
+  .rune-divider::before { left: 0; }
+  .rune-divider::after { right: 0; }
+
+  /* Norse card with angular border */
+  .norse-card {
+    @apply relative bg-card border border-border;
+    background-image: linear-gradient(
+      180deg,
+      hsl(var(--card)) 0%,
+      hsl(var(--background) / 0.8) 100%
+    );
+  }
+
+  .norse-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-top: 1px solid hsl(var(--primary) / 0.2);
+    border-bottom: 1px solid hsl(var(--primary-dark) / 0.2);
+  }
+
+  /* Ember-glow hover effect */
+  .ember-hover {
+    transition: all 0.3s ease;
+  }
+  .ember-hover:hover {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3),
+                inset 0 0 10px hsl(var(--primary) / 0.05);
+    border-color: hsl(var(--primary) / 0.5);
+  }
+
+  /* Norse-style button */
+  .btn-norse {
+    @apply relative inline-flex items-center justify-center gap-2 px-6 py-2.5
+           font-display uppercase tracking-widest text-sm
+           text-primary-foreground
+           transition-all duration-300;
+    background: linear-gradient(
+      180deg,
+      hsl(var(--primary)) 0%,
+      hsl(var(--primary-dark)) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 hsl(var(--gold) / 0.3),
+      0 2px 8px hsl(var(--primary-dark) / 0.5);
+  }
+  .btn-norse:hover {
+    filter: brightness(1.15);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--gold) / 0.5),
+      0 0 24px hsl(var(--primary) / 0.6);
+  }
+  .btn-norse:active {
+    filter: brightness(0.9);
+    transform: translateY(1px);
+  }
+  .btn-norse:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Ghost button — outlined rune style */
+  .btn-ghost-norse {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2
+           font-display uppercase tracking-widest text-xs
+           text-foreground border border-border
+           transition-all duration-300;
+    background: hsl(var(--card) / 0.5);
+  }
+  .btn-ghost-norse:hover {
+    border-color: hsl(var(--primary));
+    color: hsl(var(--primary));
+    box-shadow: 0 0 12px hsl(var(--primary) / 0.3);
+  }
+
+  /* XP progress bar with ember glow */
+  .xp-bar {
+    @apply relative h-3 w-full overflow-hidden bg-secondary border border-border;
+  }
+  .xp-bar-fill {
+    @apply h-full relative;
+    background: linear-gradient(
+      90deg,
+      hsl(var(--primary-dark)),
+      hsl(var(--primary)),
+      hsl(var(--gold))
+    );
+    box-shadow: 0 0 12px hsl(var(--primary) / 0.6);
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .xp-bar-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--gold) / 0.3) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+  }
+
+  /* Text gradient for headings */
+  .text-gradient-gold {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--gold)) 0%,
+      hsl(var(--primary)) 50%,
+      hsl(var(--primary-dark)) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gold {
+    color: hsl(var(--gold));
+  }
+
+  /* Hover glow for stat tiles */
+  .stat-glow {
+    position: relative;
+  }
+  .stat-glow::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+    transition: box-shadow 0.4s ease;
+    pointer-events: none;
+  }
+  .stat-glow:hover::after {
+    box-shadow: 0 0 30px 4px hsl(var(--primary) / 0.2);
+  }
+
+  /* Level badge concentric rings */
+  .level-badge-ring {
+    @apply relative inline-flex items-center justify-center;
+    background: radial-gradient(
+      circle,
+      hsl(var(--primary) / 0.2) 0%,
+      transparent 70%
+    );
+  }
+}
