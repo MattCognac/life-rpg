@@ -4,91 +4,12 @@ import { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { completeTutorial } from "@/actions/character-actions";
 import {
-  Shield,
-  Scroll,
   Sparkles,
   ChevronRight,
   ChevronLeft,
   X,
-  Target,
-  Sun,
-  Map,
 } from "lucide-react";
-
-type TutorialStep = {
-  id: string;
-  target: string | null;
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  tooltipPosition: "below" | "right" | "left" | "center";
-};
-
-const TUTORIAL_STEPS: TutorialStep[] = [
-  {
-    id: "welcome",
-    target: null,
-    title: "Welcome to the Realm",
-    description:
-      "Life RPG turns your real-life goals into quests. Complete them to earn XP, level up your character, and unlock achievements. Let's show you around.",
-    icon: <Shield className="w-8 h-8" />,
-    tooltipPosition: "center",
-  },
-  {
-    id: "hero",
-    target: '[data-tutorial="hero"]',
-    title: "Your Hero",
-    description:
-      "This is your character. Your level badge, title, XP bar, and key stats all live here. Complete quests to earn XP and watch your hero grow stronger.",
-    icon: <Shield className="w-6 h-6" />,
-    tooltipPosition: "below",
-  },
-  {
-    id: "quests",
-    target: '[data-tutorial="quests"]',
-    title: "Active Quests",
-    description:
-      "Your active quests are shown here with chain progress. Create quests manually or use Odin AI to generate a full quest chain from any goal.",
-    icon: <Scroll className="w-6 h-6" />,
-    tooltipPosition: "below",
-  },
-  {
-    id: "dailies",
-    target: '[data-tutorial="dailies"]',
-    title: "Dailies",
-    description:
-      "Dailies are recurring quests you can complete every day. Build streaks to earn bonus XP and stay consistent with your habits.",
-    icon: <Sun className="w-6 h-6" />,
-    tooltipPosition: "below",
-  },
-  {
-    id: "skills",
-    target: '[data-tutorial="skills"]',
-    title: "Skill Mastery",
-    description:
-      "Skills are categories of mastery — like Fitness, Coding, or Cooking. They level up as you complete related quests. Create at least 3 to see your radar chart.",
-    icon: <Target className="w-6 h-6" />,
-    tooltipPosition: "below",
-  },
-  {
-    id: "navigation",
-    target: '[data-tutorial="sidebar-nav"]',
-    title: "Explore the Realm",
-    description:
-      "Use the sidebar to navigate between your Dashboard, Quests, Chains, Dailies, Character page, and Achievements. Each section gives you a deeper view of your journey.",
-    icon: <Map className="w-6 h-6" />,
-    tooltipPosition: "right",
-  },
-  {
-    id: "forge-ai",
-    target: '[data-tutorial="forge-ai"]',
-    title: "Create Your First Goal",
-    description:
-      "Ready to begin? Use Odin AI to break any goal into a step-by-step quest chain, or create quests manually from scratch anytime.",
-    icon: <Sparkles className="w-6 h-6" />,
-    tooltipPosition: "below",
-  },
-];
+import { TUTORIAL_STEPS, type TutorialStep } from "@/lib/tutorial-steps";
 
 interface SpotlightRect {
   top: number;
@@ -109,13 +30,101 @@ export function reopenTutorial() {
   reopenListeners.forEach((l) => l());
 }
 
+function waitForStablePosition(
+  el: Element,
+  signal: AbortSignal,
+): Promise<DOMRect | null> {
+  return new Promise((resolve) => {
+    let prev = el.getBoundingClientRect();
+    let settled = 0;
+
+    function check() {
+      if (signal.aborted) { resolve(null); return; }
+      const curr = el.getBoundingClientRect();
+      const same =
+        Math.abs(curr.top - prev.top) < 1 &&
+        Math.abs(curr.left - prev.left) < 1;
+      prev = curr;
+      if (same) {
+        settled++;
+        if (settled >= 3) { resolve(curr); return; }
+      } else {
+        settled = 0;
+      }
+      requestAnimationFrame(check);
+    }
+
+    requestAnimationFrame(check);
+  });
+}
+
+function computeTooltipStyle(
+  step: TutorialStep,
+  rect: SpotlightRect,
+): React.CSSProperties {
+  const tooltipWidth = 420;
+  const tooltipGap = 16;
+  const pos = step.tooltipPosition;
+  const style: React.CSSProperties = { position: "fixed", width: tooltipWidth };
+
+  if (pos === "below") {
+    const topPos = rect.top + rect.height + tooltipGap;
+    let leftPos = Math.max(16, rect.left + rect.width / 2 - tooltipWidth / 2);
+    if (leftPos + tooltipWidth > window.innerWidth - 16) {
+      leftPos = window.innerWidth - tooltipWidth - 16;
+    }
+    style.top = topPos;
+    style.left = leftPos;
+  } else if (pos === "right") {
+    const rightLeft = rect.left + rect.width + tooltipGap;
+    if (rightLeft + tooltipWidth > window.innerWidth - 16) {
+      const topPos = rect.top + rect.height + tooltipGap;
+      let leftPos = Math.max(16, rect.left + rect.width / 2 - tooltipWidth / 2);
+      if (leftPos + tooltipWidth > window.innerWidth - 16) {
+        leftPos = window.innerWidth - tooltipWidth - 16;
+      }
+      style.top = topPos;
+      style.left = leftPos;
+    } else {
+      style.top = rect.top;
+      style.left = rightLeft;
+    }
+  } else if (pos === "left") {
+    const leftLeft = rect.left - tooltipWidth - tooltipGap;
+    if (leftLeft < 16) {
+      const topPos = rect.top + rect.height + tooltipGap;
+      let leftPos = Math.max(16, rect.left + rect.width / 2 - tooltipWidth / 2);
+      if (leftPos + tooltipWidth > window.innerWidth - 16) {
+        leftPos = window.innerWidth - tooltipWidth - 16;
+      }
+      style.top = topPos;
+      style.left = leftPos;
+    } else {
+      style.top = rect.top;
+      style.left = leftLeft;
+    }
+  }
+
+  if (typeof style.top === "number") {
+    const estimatedTooltipHeight = 200;
+    if (style.top + estimatedTooltipHeight > window.innerHeight - 16) {
+      style.top = rect.top - estimatedTooltipHeight - tooltipGap;
+      if (style.top < 16) style.top = 16;
+    }
+    if (style.top < 16) style.top = 16;
+  }
+
+  return style;
+}
+
 export function TutorialOverlay({ characterName, open }: TutorialOverlayProps) {
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(open);
   const [spotlightRect, setSpotlightRect] = useState<SpotlightRect | null>(null);
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
+  const [contentVisible, setContentVisible] = useState(true);
   const [isFinishing, startFinishing] = useTransition();
-  const spotlightRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const currentStep = TUTORIAL_STEPS[step];
   const isLastStep = step === TUTORIAL_STEPS.length - 1;
@@ -156,95 +165,67 @@ export function TutorialOverlay({ characterName, open }: TutorialOverlayProps) {
       return;
     }
 
-    const rect = el.getBoundingClientRect();
+    const domRect = el.getBoundingClientRect();
     const padding = 8;
-
     const newRect = {
-      top: rect.top - padding,
-      left: rect.left - padding,
-      width: rect.width + padding * 2,
-      height: rect.height + padding * 2,
+      top: domRect.top - padding,
+      left: domRect.left - padding,
+      width: domRect.width + padding * 2,
+      height: domRect.height + padding * 2,
     };
     setSpotlightRect(newRect);
-
-    const tooltipWidth = 420;
-    const tooltipGap = 16;
-    const pos = currentStep.tooltipPosition;
-
-    let style: React.CSSProperties = { position: "fixed", width: tooltipWidth };
-
-    if (pos === "below") {
-      const topPos = newRect.top + newRect.height + tooltipGap;
-      let leftPos = Math.max(16, newRect.left + newRect.width / 2 - tooltipWidth / 2);
-      if (leftPos + tooltipWidth > window.innerWidth - 16) {
-        leftPos = window.innerWidth - tooltipWidth - 16;
-      }
-      style.top = topPos;
-      style.left = leftPos;
-    } else if (pos === "right") {
-      const rightLeft = newRect.left + newRect.width + tooltipGap;
-      if (rightLeft + tooltipWidth > window.innerWidth - 16) {
-        const topPos = newRect.top + newRect.height + tooltipGap;
-        let leftPos = Math.max(16, newRect.left + newRect.width / 2 - tooltipWidth / 2);
-        if (leftPos + tooltipWidth > window.innerWidth - 16) {
-          leftPos = window.innerWidth - tooltipWidth - 16;
-        }
-        style.top = topPos;
-        style.left = leftPos;
-      } else {
-        style.top = newRect.top;
-        style.left = rightLeft;
-      }
-    } else if (pos === "left") {
-      const leftLeft = newRect.left - tooltipWidth - tooltipGap;
-      if (leftLeft < 16) {
-        const topPos = newRect.top + newRect.height + tooltipGap;
-        let leftPos = Math.max(16, newRect.left + newRect.width / 2 - tooltipWidth / 2);
-        if (leftPos + tooltipWidth > window.innerWidth - 16) {
-          leftPos = window.innerWidth - tooltipWidth - 16;
-        }
-        style.top = topPos;
-        style.left = leftPos;
-      } else {
-        style.top = newRect.top;
-        style.left = leftLeft;
-      }
-    }
-
-    if (typeof style.top === "number") {
-      const estimatedTooltipHeight = 200;
-      if (style.top + estimatedTooltipHeight > window.innerHeight - 16) {
-        style.top = newRect.top - estimatedTooltipHeight - tooltipGap;
-        if (style.top < 16) style.top = 16;
-      }
-      if (style.top < 16) style.top = 16;
-    }
-
-    setTooltipStyle(style);
+    setTooltipStyle(computeTooltipStyle(currentStep, newRect));
   }, [currentStep]);
 
   useEffect(() => {
     if (!visible) return;
 
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+
+    setContentVisible(false);
+
     if (currentStep?.target) {
       const el = document.querySelector(currentStep.target);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
-        const timer = setTimeout(measureTarget, 400);
-        return () => clearTimeout(timer);
+        waitForStablePosition(el, ac.signal).then((domRect) => {
+          if (!domRect || ac.signal.aborted) return;
+          const padding = 8;
+          const newRect = {
+            top: domRect.top - padding,
+            left: domRect.left - padding,
+            width: domRect.width + padding * 2,
+            height: domRect.height + padding * 2,
+          };
+          setSpotlightRect(newRect);
+          setTooltipStyle(computeTooltipStyle(currentStep, newRect));
+          requestAnimationFrame(() => setContentVisible(true));
+        });
+      } else {
+        setSpotlightRect(null);
+        setTooltipStyle({});
+        requestAnimationFrame(() => setContentVisible(true));
       }
+    } else {
+      setSpotlightRect(null);
+      setTooltipStyle({});
+      requestAnimationFrame(() => setContentVisible(true));
     }
 
-    measureTarget();
-  }, [step, visible, measureTarget, currentStep]);
+    return () => ac.abort();
+  }, [step, visible, currentStep, measureTarget]);
 
   useEffect(() => {
     if (!visible || !currentStep?.target) return;
 
-    const handleResize = () => measureTarget();
-    window.addEventListener("resize", handleResize);
+    const handler = () => measureTarget();
+    window.addEventListener("resize", handler);
+    window.addEventListener("scroll", handler, true);
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("resize", handler);
+      window.removeEventListener("scroll", handler, true);
     };
   }, [visible, currentStep, measureTarget]);
 
@@ -277,30 +258,29 @@ export function TutorialOverlay({ characterName, open }: TutorialOverlayProps) {
   const targetMissing = !isCentered && currentStep.target && !spotlightRect;
   const showCenteredFallback = isCentered || targetMissing;
 
+  const contentOpacity = contentVisible ? "opacity-100" : "opacity-0";
+  const contentTransition = "transition-opacity duration-200";
+
   return (
     <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="Tutorial">
-      {/* Dark overlay for centered / fallback steps */}
       {showCenteredFallback && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm animate-fade-in" />
       )}
 
-      {/* Spotlight cutout for targeted steps */}
       {!isCentered && spotlightRect && (
         <div
-          ref={spotlightRef}
           className="fixed rounded-sm animate-rune-spotlight pointer-events-none"
           style={{
             top: spotlightRect.top,
             left: spotlightRect.left,
             width: spotlightRect.width,
             height: spotlightRect.height,
-            transition: "top 0.4s ease-in-out, left 0.4s ease-in-out, width 0.4s ease-in-out, height 0.4s ease-in-out",
+            transition: "top 0.35s ease-out, left 0.35s ease-out, width 0.35s ease-out, height 0.35s ease-out",
             zIndex: 71,
           }}
         />
       )}
 
-      {/* Pulsing "Try me!" hotspot on the Forge button for the last step */}
       {isLastStep && spotlightRect && (
         <div
           className="fixed pointer-events-none"
@@ -319,10 +299,9 @@ export function TutorialOverlay({ characterName, open }: TutorialOverlayProps) {
         </div>
       )}
 
-      {/* Centered modal card (welcome + fallback when target not found) */}
       {isCentered && (
         <div className="fixed inset-0 flex items-center justify-center p-4 z-[72]">
-          <div className="norse-card p-8 md:p-10 relative overflow-hidden max-w-lg w-full animate-fade-in-up">
+          <div className={`norse-card p-8 md:p-10 relative overflow-hidden max-w-lg w-full animate-fade-in-up ${contentTransition} ${contentOpacity}`}>
             <div
               className="absolute inset-0 opacity-20 pointer-events-none"
               style={{
@@ -346,10 +325,9 @@ export function TutorialOverlay({ characterName, open }: TutorialOverlayProps) {
         </div>
       )}
 
-      {/* Fallback centered card when a targeted step's element isn't in the DOM (e.g. sidebar on mobile) */}
       {targetMissing && (
         <div className="fixed inset-0 flex items-center justify-center p-4 z-[72]">
-          <div className="norse-card p-8 relative overflow-hidden max-w-md w-full animate-fade-in-up border-t-2 border-t-gold/50">
+          <div className={`norse-card p-8 relative overflow-hidden max-w-md w-full animate-fade-in-up border-t-2 border-t-gold/50 ${contentTransition} ${contentOpacity}`}>
             <div className="relative">
               {renderTooltipContent()}
             </div>
@@ -357,9 +335,8 @@ export function TutorialOverlay({ characterName, open }: TutorialOverlayProps) {
         </div>
       )}
 
-      {/* Positioned tooltip card for spotlight steps */}
       {!isCentered && spotlightRect && (
-        <div style={{ ...tooltipStyle, zIndex: 72 }} className="animate-fade-in-up">
+        <div style={{ ...tooltipStyle, zIndex: 72 }} className={`${contentTransition} ${contentOpacity}`}>
           <div className="norse-card p-6 pb-5 border-t-2 border-t-gold/50 shadow-xl">
             {renderTooltipContent()}
           </div>

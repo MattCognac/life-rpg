@@ -4,6 +4,8 @@ import { ChainProgress } from "@/components/chains/chain-progress";
 import { AddQuestToChain } from "@/components/chains/add-quest-to-chain";
 import { ChainMenu } from "@/components/chains/chain-menu";
 import { BackButton } from "@/components/ui/back-button";
+import { Badge } from "@/components/ui/badge";
+import { getChainTier } from "@/lib/realms";
 import { Link2, Check } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +25,11 @@ export default async function ChainDetailPage({
         quests: { orderBy: { chainOrder: "asc" } },
       },
     }),
-    db.skill.findMany({ where: { userId }, orderBy: { name: "asc" } }),
+    db.skill.findMany({
+      where: { userId, parentId: null },
+      include: { children: { orderBy: { name: "asc" } } },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   if (!chain) notFound();
@@ -62,8 +68,22 @@ export default async function ChainDetailPage({
                 {chain.description}
               </p>
             )}
-            <div className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mt-3">
-              Progress: {completed}/{total} quests
+            <div className="flex items-center gap-3 mt-3">
+              <div className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">
+                Progress: {completed}/{total} quests
+              </div>
+              {chain.tier && chain.tier !== "common" && (() => {
+                const tier = getChainTier(chain.tier);
+                return tier ? (
+                  <Badge
+                    variant="outline"
+                    className="text-[9px]"
+                    style={{ borderColor: tier.color, color: tier.color }}
+                  >
+                    {tier.name}
+                  </Badge>
+                ) : null;
+              })()}
             </div>
           </div>
         </div>

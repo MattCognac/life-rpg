@@ -4,12 +4,13 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { revalidatePath } from "next/cache";
 import { XP_BY_DIFFICULTY } from "@/lib/xp";
+import { revalidateApp } from "@/lib/revalidate";
 import { SKILL_COLOR_PRESETS, SKILL_ICON_PRESETS } from "@/lib/constants";
 import { hasAnthropicKey } from "@/lib/env";
 import { checkCombinedRateLimit } from "@/lib/rate-limit";
 import { getAuthUser } from "@/lib/auth";
+import { REALMS, REALM_SLUGS } from "@/lib/realms";
 import type { ActionResult } from "@/types";
 
 const AI_GENERATE_LIMITS = [
@@ -34,10 +35,19 @@ const GeneratedQuestSchema = z.object({
     .describe(
       "Difficulty: 1=Trivial (few minutes), 2=Easy (under an hour), 3=Medium (a few hours), 4=Hard (days of effort), 5=Legendary (major accomplishment)"
     ),
-  skillName: z
+  realm: z
+    .enum(REALM_SLUGS)
+    .describe("Which realm this quest belongs to"),
+  disciplineName: z
     .string()
     .describe(
-      "Name of the skill this quest develops. Use an existing skill name from the provided list if it fits, otherwise propose a new one (1-2 words)."
+      "The discipline this quest develops (e.g., 'Archery', 'Cooking'). Reuse existing disciplines when they fit."
+    ),
+  skillName: z
+    .string()
+    .optional()
+    .describe(
+      "Optional specific sub-skill within the discipline (e.g., 'Compound Bow', 'Grilling'). Only include if the quest develops a narrow sub-skill, not for simple/straightforward quests. Reuse existing sub-skills when they fit."
     ),
 });
 
@@ -48,6 +58,11 @@ const GeneratedChainSchema = z.object({
   chainDescription: z
     .string()
     .describe("1-2 sentence overview of the journey this chain represents"),
+  tier: z
+    .enum(["common", "uncommon", "epic", "legendary"])
+    .describe(
+      "Chain tier based on scope: common (1 discipline), uncommon (2-3 disciplines), epic (4+ disciplines or 2+ realms), legendary (5+ disciplines across 3+ realms)"
+    ),
   quests: z
     .array(GeneratedQuestSchema)
     .describe(
@@ -57,16 +72,24 @@ const GeneratedChainSchema = z.object({
 
 export type GeneratedChain = z.infer<typeof GeneratedChainSchema>;
 
-async function getSkillList(userId: string): Promise<string> {
-  const existingSkills = await db.skill.findMany({
-    where: { userId },
-    select: { name: true },
+async function getSkillTree(userId: string): Promise<string> {
+  const disciplines = await db.skill.findMany({
+    where: { userId, parentId: null },
+    include: { children: { select: { name: true } } },
     orderBy: { name: "asc" },
   });
-  return existingSkills.map((s) => s.name).join(", ") || "(none yet)";
+  if (disciplines.length === 0) return "(none yet)";
+  return disciplines
+    .map(
+      (d) =>
+        `[${d.realm ?? "life"}] ${d.name}: ${d.children.map((c) => c.name).join(", ") || "(no sub-skills)"}`
+    )
+    .join("\n");
 }
 
-function buildSystemPrompt(skillList: string): string {
+function buildSystemPrompt(skillTree: string): string {
+  const realmList = REALMS.map((r) => `- ${r.slug}: ${r.description}`).join("\n");
+
   return `You are a quest designer for Life RPG, a gamified self-improvement app. The user will give you a real-life goal and you must break it down into an ordered chain of quests that, completed in sequence, will get them from zero to accomplishing that goal.
 
 ## Your Primary Job: Accurate Decomposition
@@ -94,11 +117,32 @@ If the goal genuinely requires 50 steps to do right, write 50 steps. If it only 
 - **Building on each other.** Quest N+1 should naturally follow from completing quest N. The prerequisites of a later quest should be satisfied by completing earlier ones.
 - **Specific titles.** Short and imperative. "Research bow types and pick one", "Hit a stationary target at 20 meters", "Field-dress a harvested animal".
 - **Practical descriptions.** 1-2 sentences explaining exactly what the user needs to do. No fluff.
-- **Tagged to skills.** Each quest develops a skill. Prefer existing skills from the list when they fit; invent new ones only when genuinely needed.
 - **The final quest IS the goal.** The last quest in the chain should be the actual accomplishment the user asked for.
 
-## Existing Skills
-${skillList}`;
+## Skill System
+Every quest must be tagged to a REALM and DISCIPLINE. A SUB-SKILL is optional for quests that develop a specific component of a discipline.
+
+### The ${REALMS.length} Realms (pick exactly one per quest):
+${realmList}
+
+### User's Existing Disciplines & Sub-skills:
+${skillTree}
+
+Rules:
+- Reuse existing discipline and sub-skill names when they fit (case-insensitive match).
+- Create new disciplines/sub-skills when genuinely needed.
+- Discipline names should pass the "I'm good at X" test (e.g., "Cooking" not "Food").
+- Sub-skill names should be specific (e.g., "Grilling" not "Cooking Techniques").
+- Only include a sub-skill when the quest genuinely develops a specific component. Simple or straightforward quests should tag to the discipline only (omit skillName).
+
+## Chain Scope
+Quest chains can and SHOULD span multiple disciplines and realms when the goal calls for it. A goal like "start a homestead" naturally involves Farming, Construction, Plumbing, Animal Care, Preservation, etc. across Nature, Craft, and Life realms. Do not artificially constrain a chain to a single discipline or realm.
+
+Classify the chain tier based on its scope:
+- common: 1 discipline, 1 realm (e.g., "Read a book this month")
+- uncommon: 2-3 disciplines, 1 realm (e.g., "Learn to bake bread")
+- epic: 4+ disciplines or 2+ realms (e.g., "Learn to hunt")
+- legendary: 5+ disciplines across 3+ realms (e.g., "Start a homestead", "Build a cabin")`;
 }
 
 function checkAiPrerequisites<T>(userId: string): ActionResult<T> | null {
@@ -131,14 +175,16 @@ function handleAnthropicError<T>(err: unknown): ActionResult<T> {
     return { success: false, error: "Rate limited. Wait a moment and try again." };
   }
   if (err instanceof Anthropic.APIError) {
+    console.error("Anthropic API error:", err.status, err.message);
     return {
       success: false,
-      error: `API error (${err.status}): ${err.message}`,
+      error: "AI service error. Please try again later.",
     };
   }
+  console.error("AI generation error:", err);
   return {
     success: false,
-    error: err instanceof Error ? err.message : "Unknown error",
+    error: "Something went wrong. Please try again.",
   };
 }
 
@@ -161,14 +207,14 @@ export async function generateQuestChain(
   if (prereqError) return prereqError;
 
   try {
-    const skillList = await getSkillList(userId);
+    const skillTree = await getSkillTree(userId);
     const client = new Anthropic();
 
     const stream = client.messages.stream({
       model: "claude-opus-4-6",
       max_tokens: 32000,
       thinking: { type: "adaptive" },
-      system: buildSystemPrompt(skillList),
+      system: buildSystemPrompt(skillTree),
       messages: [
         {
           role: "user",
@@ -216,14 +262,14 @@ export async function refineQuestChain(
   if (prereqError) return prereqError;
 
   try {
-    const skillList = await getSkillList(userId);
+    const skillTree = await getSkillTree(userId);
     const client = new Anthropic();
 
     const stream = client.messages.stream({
       model: "claude-opus-4-6",
       max_tokens: 32000,
       thinking: { type: "adaptive" },
-      system: buildSystemPrompt(skillList),
+      system: buildSystemPrompt(skillTree),
       messages: [
         {
           role: "user",
@@ -264,32 +310,66 @@ export async function saveGeneratedChain(
   try {
     const userId = await getAuthUser();
 
-    const uniqueSkillNames = Array.from(
-      new Set(generated.quests.map((q) => q.skillName.trim()))
-    );
+    type SkillTuple = { realm: string; disciplineName: string; skillName?: string };
+    const tuples: SkillTuple[] = generated.quests.map((q) => ({
+      realm: q.realm,
+      disciplineName: q.disciplineName.trim(),
+      skillName: q.skillName?.trim() || undefined,
+    }));
 
-    const existingSkills = await db.skill.findMany({
-      where: { userId, name: { in: uniqueSkillNames } },
+    const disciplineMap = new Map<string, { id: string; name: string; realm: string }>();
+    const subSkillMap = new Map<string, { id: string; name: string; parentId: string }>();
+
+    const existingDisciplines = await db.skill.findMany({
+      where: { userId, parentId: null },
+      include: { children: { select: { id: true, name: true } } },
     });
-    const existingByName = new Map(
-      existingSkills.map((s) => [s.name.toLowerCase(), s])
-    );
 
-    const skillsByName = new Map<string, { id: string; name: string }>();
-    for (const s of existingSkills) {
-      skillsByName.set(s.name.toLowerCase(), { id: s.id, name: s.name });
+    for (const d of existingDisciplines) {
+      disciplineMap.set(d.name.toLowerCase(), { id: d.id, name: d.name, realm: d.realm ?? "life" });
+      for (const child of d.children) {
+        subSkillMap.set(`${d.id}::${child.name.toLowerCase()}`, { id: child.id, name: child.name, parentId: d.id });
+      }
     }
 
-    let presetIdx = existingSkills.length;
-    for (const name of uniqueSkillNames) {
-      if (existingByName.has(name.toLowerCase())) continue;
-      const color = SKILL_COLOR_PRESETS[presetIdx % SKILL_COLOR_PRESETS.length];
-      const icon = SKILL_ICON_PRESETS[presetIdx % SKILL_ICON_PRESETS.length];
-      presetIdx++;
-      const created = await db.skill.create({
-        data: { userId, name, color, icon },
-      });
-      skillsByName.set(name.toLowerCase(), { id: created.id, name: created.name });
+    let presetIdx = existingDisciplines.length;
+
+    for (const tuple of tuples) {
+      const dKey = tuple.disciplineName.toLowerCase();
+      if (!disciplineMap.has(dKey)) {
+        const color = SKILL_COLOR_PRESETS[presetIdx % SKILL_COLOR_PRESETS.length];
+        const icon = SKILL_ICON_PRESETS[presetIdx % SKILL_ICON_PRESETS.length];
+        presetIdx++;
+        const created = await db.skill.create({
+          data: {
+            userId,
+            name: tuple.disciplineName,
+            realm: tuple.realm,
+            color,
+            icon,
+          },
+        });
+        disciplineMap.set(dKey, { id: created.id, name: created.name, realm: tuple.realm });
+      }
+
+      if (tuple.skillName) {
+        const discipline = disciplineMap.get(dKey)!;
+        const sKey = `${discipline.id}::${tuple.skillName.toLowerCase()}`;
+        if (!subSkillMap.has(sKey)) {
+          const parent = disciplineMap.get(dKey)!;
+          const created = await db.skill.create({
+            data: {
+              userId,
+              name: tuple.skillName,
+              parentId: parent.id,
+              icon: SKILL_ICON_PRESETS[presetIdx % SKILL_ICON_PRESETS.length],
+              color: SKILL_COLOR_PRESETS[presetIdx % SKILL_COLOR_PRESETS.length],
+            },
+          });
+          presetIdx++;
+          subSkillMap.set(sKey, { id: created.id, name: created.name, parentId: parent.id });
+        }
+      }
     }
 
     const chain = await db.questChain.create({
@@ -297,13 +377,24 @@ export async function saveGeneratedChain(
         userId,
         name: generated.chainName,
         description: generated.chainDescription,
+        tier: generated.tier,
       },
     });
 
     for (let i = 0; i < generated.quests.length; i++) {
       const q = generated.quests[i];
       const difficulty = Math.max(1, Math.min(5, Math.round(q.difficulty)));
-      const skill = skillsByName.get(q.skillName.trim().toLowerCase());
+      const discipline = disciplineMap.get(q.disciplineName.trim().toLowerCase());
+
+      let linkSkillId: string | null = null;
+      if (q.skillName?.trim() && discipline) {
+        const sKey = `${discipline.id}::${q.skillName.trim().toLowerCase()}`;
+        const sub = subSkillMap.get(sKey);
+        linkSkillId = sub?.id ?? discipline.id;
+      } else if (discipline) {
+        linkSkillId = discipline.id;
+      }
+
       await db.quest.create({
         data: {
           userId,
@@ -314,21 +405,19 @@ export async function saveGeneratedChain(
           status: i === 0 ? "active" : "locked",
           chainId: chain.id,
           chainOrder: i,
-          skillId: skill?.id ?? null,
+          skillId: linkSkillId,
         },
       });
     }
 
-    revalidatePath("/chains");
-    revalidatePath(`/chains/${chain.id}`);
-    revalidatePath("/skills");
-    revalidatePath("/quests");
+    revalidateApp(`/chains/${chain.id}`);
 
     return { success: true, data: { chainId: chain.id } };
   } catch (err) {
+    console.error("saveGeneratedChain failed:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to save chain",
+      error: "Failed to save chain",
     };
   }
 }

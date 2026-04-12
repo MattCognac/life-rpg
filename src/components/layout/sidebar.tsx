@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Swords,
@@ -10,11 +10,12 @@ import {
   UserCircle,
   Trophy,
   LogOut,
-  HelpCircle,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { reopenTutorial } from "@/components/onboarding/tutorial-overlay";
+import { useOptimisticPathname } from "@/lib/use-optimistic-pathname";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, tutorialKey: "nav-dashboard" },
@@ -33,8 +34,11 @@ function isLink(item: NavItem): item is Extract<NavItem, { href: string }> {
   return "href" in item;
 }
 
+const bottomButtonClass =
+  "w-full flex items-center gap-3 px-3 py-2.5 font-display uppercase tracking-wider text-sm text-muted-foreground hover:text-foreground hover:bg-card-hover border-l-2 border-transparent transition-all duration-200";
+
 export function Sidebar() {
-  const pathname = usePathname();
+  const { pathname, navigate } = useOptimisticPathname();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -80,10 +84,14 @@ export function Sidebar() {
                 : pathname.startsWith(item.href);
 
           return (
-            <Link
+            <a
               key={item.href}
               href={item.href}
               data-tutorial={item.tutorialKey}
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(item.href);
+              }}
               className={cn(
                 "group relative flex items-center gap-3 px-3 py-2.5 font-display uppercase tracking-wider text-sm transition-all duration-200 border-l-2",
                 active
@@ -98,29 +106,26 @@ export function Sidebar() {
                 )}
               />
               <span>{item.label}</span>
-            </Link>
+            </a>
           );
         })}
       </nav>
 
-      <div className="px-3 pb-2">
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 font-display uppercase tracking-wider text-sm text-muted-foreground hover:text-foreground hover:bg-card-hover border-l-2 border-transparent transition-all duration-200"
-        >
+      <div className="px-3 pb-1 space-y-0.5">
+        <button onClick={reopenTutorial} className={bottomButtonClass}>
+          <BookOpen className="w-4 h-4" />
+          <span>Tutorial</span>
+        </button>
+        <button onClick={handleLogout} className={bottomButtonClass}>
           <LogOut className="w-4 h-4" />
           <span>Logout</span>
         </button>
       </div>
 
       <div className="px-3 py-3 border-t border-border">
-        <button
-          onClick={reopenTutorial}
-          className="w-full flex items-center gap-3 px-3 py-2 font-display uppercase tracking-wider text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <HelpCircle className="w-3.5 h-3.5" />
-          <span>Tutorial</span>
-        </button>
+        <p className="text-[10px] text-muted-foreground/50 text-center font-body">
+          &copy; {new Date().getFullYear()} Life RPG
+        </p>
       </div>
     </aside>
   );

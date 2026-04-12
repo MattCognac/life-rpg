@@ -4,6 +4,7 @@ import { XpBar } from "@/components/shared/xp-bar";
 import * as LucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
+import { getRealmBySlug } from "@/lib/realms";
 
 interface Props {
   skill: {
@@ -13,8 +14,12 @@ interface Props {
     color: string;
     totalXp: number;
     level: number;
+    realm?: string | null;
+    parentId?: string | null;
   };
   href?: string;
+  subSkillCount?: number;
+  parentName?: string;
 }
 
 function getIcon(name: string): LucideIcon {
@@ -22,9 +27,10 @@ function getIcon(name: string): LucideIcon {
   return icons[name] ?? LucideIcons.Sword;
 }
 
-export function SkillCard({ skill, href }: Props) {
+export function SkillCard({ skill, href, subSkillCount, parentName }: Props) {
   const { level, currentLevelXp, xpForNextLevel } = computeLevel(skill.totalXp);
   const Icon = getIcon(skill.icon);
+  const realm = skill.realm ? getRealmBySlug(skill.realm) : null;
 
   const body = (
     <div className="norse-card p-5 ember-hover group cursor-pointer h-full">
@@ -40,11 +46,21 @@ export function SkillCard({ skill, href }: Props) {
           <Icon className="w-6 h-6" style={{ color: skill.color }} />
         </div>
         <div className="flex-1 min-w-0">
+          {parentName && (
+            <div className="text-[9px] font-display uppercase tracking-widest text-muted-foreground mb-0.5">
+              {parentName}
+            </div>
+          )}
           <div className="font-display text-base tracking-wider uppercase text-foreground truncate">
             {skill.name}
           </div>
-          <div className="text-[10px] font-body tracking-widest uppercase text-muted-foreground">
-            Level {level}
+          <div className="text-[10px] font-body tracking-widest uppercase text-muted-foreground flex items-center gap-2">
+            <span>Level {level}</span>
+            {subSkillCount != null && subSkillCount > 0 && (
+              <span className="text-muted-foreground/60">
+                &bull; {subSkillCount} sub-skill{subSkillCount === 1 ? "" : "s"}
+              </span>
+            )}
           </div>
         </div>
         <div className="font-display text-2xl text-gold">

@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Swords,
@@ -9,6 +7,7 @@ import {
   UserCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useOptimisticPathname } from "@/lib/use-optimistic-pathname";
 
 const items = [
   { href: "/", label: "Home", icon: LayoutDashboard },
@@ -18,7 +17,7 @@ const items = [
 ];
 
 export function MobileNav() {
-  const pathname = usePathname();
+  const { pathname, navigate } = useOptimisticPathname();
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-card/95 backdrop-blur-md border-t border-border">
@@ -30,9 +29,13 @@ export function MobileNav() {
               : pathname.startsWith(item.href);
           const Icon = item.icon;
           return (
-            <Link
+            <a
               key={item.href}
               href={item.href}
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(item.href);
+              }}
               className={cn(
                 "flex flex-col items-center gap-1 px-3 py-2 text-[10px] font-display uppercase tracking-widest transition-colors",
                 active ? "text-primary" : "text-muted-foreground"
@@ -40,7 +43,7 @@ export function MobileNav() {
             >
               <Icon className={cn("w-5 h-5", active && "drop-shadow-[0_0_4px_hsl(var(--primary))]")} />
               {item.label}
-            </Link>
+            </a>
           );
         })}
       </div>

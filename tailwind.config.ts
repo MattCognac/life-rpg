@@ -113,11 +113,11 @@ const config: Config = {
         "rune-spotlight": {
           "0%, 100%": {
             boxShadow:
-              "0 0 0 9999px rgba(0,0,0,0.75), 0 0 20px hsl(var(--gold) / 0.5), inset 0 0 15px hsl(var(--gold) / 0.15)",
+              "0 0 0 9999px rgba(0,0,0,0.75), 0 0 15px hsl(var(--gold) / 0.4), inset 0 0 10px hsl(var(--gold) / 0.1)",
           },
           "50%": {
             boxShadow:
-              "0 0 0 9999px rgba(0,0,0,0.75), 0 0 40px hsl(var(--gold) / 0.8), inset 0 0 25px hsl(var(--gold) / 0.25)",
+              "0 0 0 9999px rgba(0,0,0,0.75), 0 0 22px hsl(var(--gold) / 0.55), inset 0 0 14px hsl(var(--gold) / 0.15)",
           },
         },
       },
@@ -131,7 +131,7 @@ const config: Config = {
         "slide-in-right": "slide-in-right 0.4s ease-out",
         "shimmer": "shimmer 3s linear infinite",
         "quest-flash": "quest-flash 1.4s ease-out forwards",
-        "rune-spotlight": "rune-spotlight 2s ease-in-out infinite",
+        "rune-spotlight": "rune-spotlight 3s ease-in-out infinite",
       },
     },
   },

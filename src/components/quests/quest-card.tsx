@@ -18,11 +18,18 @@ interface QuestCardProps {
       id: string;
       name: string;
       color: string;
+      parent?: { name: string } | null;
     } | null;
   };
   href?: string;
   compact?: boolean;
   variant?: "card" | "row";
+}
+
+function skillDisplayName(skill: QuestCardProps["quest"]["skill"]): string {
+  if (!skill) return "";
+  if (skill.parent) return `${skill.parent.name} › ${skill.name}`;
+  return skill.name;
 }
 
 export function QuestCard({ quest, href, compact, variant = "card" }: QuestCardProps) {
@@ -53,7 +60,7 @@ export function QuestCard({ quest, href, compact, variant = "card" }: QuestCardP
                 backgroundColor: `${quest.skill.color}10`,
               }}
             >
-              {quest.skill.name}
+              {skillDisplayName(quest.skill)}
             </Badge>
           )}
           <div
@@ -105,7 +112,7 @@ export function QuestCard({ quest, href, compact, variant = "card" }: QuestCardP
                   backgroundColor: `${quest.skill.color}10`,
                 }}
               >
-                {quest.skill.name}
+                {skillDisplayName(quest.skill)}
               </Badge>
             )}
           </div>

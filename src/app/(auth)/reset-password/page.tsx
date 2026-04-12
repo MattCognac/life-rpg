@@ -2,16 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-export default function LoginPage() {
+export default function ResetPasswordPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -19,15 +18,24 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
     startTransition(async () => {
       const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
+      const { error: updateError } = await supabase.auth.updateUser({
         password,
       });
 
-      if (authError) {
-        setError(authError.message);
+      if (updateError) {
+        setError(updateError.message);
         return;
       }
 
@@ -51,39 +59,31 @@ export default function LoginPage() {
             Life RPG
           </h1>
           <p className="text-xs font-display tracking-[0.3em] text-muted-foreground uppercase mt-2">
-            Return to the Realm
+            Set New Password
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-              placeholder="adventurer@realm.com"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link
-                href="/forgot-password"
-                className="text-xs text-muted-foreground hover:text-primary transition-colors font-body"
-              >
-                Forgot password?
-              </Link>
-            </div>
+            <Label htmlFor="password">New Password</Label>
             <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
+              autoFocus
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="confirm-password">Confirm New Password</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               required
               placeholder="••••••••"
             />
@@ -94,21 +94,9 @@ export default function LoginPage() {
           )}
 
           <Button type="submit" disabled={isPending} className="w-full">
-            {isPending ? "Entering..." : "Enter the Realm"}
+            {isPending ? "Updating..." : "Update Password"}
           </Button>
         </form>
-
-        <div className="text-center">
-          <p className="text-sm font-body text-muted-foreground">
-            New adventurer?{" "}
-            <Link
-              href="/signup"
-              className="text-primary hover:text-primary/80 transition-colors"
-            >
-              Begin your journey
-            </Link>
-          </p>
-        </div>
       </div>
     </div>
   );

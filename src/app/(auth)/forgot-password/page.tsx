@@ -8,10 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-export default function SignUpPage() {
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [emailSent, setEmailSent] = useState(false);
@@ -20,36 +18,21 @@ export default function SignUpPage() {
     e.preventDefault();
     setError(null);
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
-
     startTransition(async () => {
       const supabase = createClient();
-      const { data, error: authError } = await supabase.auth.signUp({
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        {
+          redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
         },
-      });
+      );
 
-      if (authError) {
-        setError(authError.message);
+      if (resetError) {
+        setError(resetError.message);
         return;
       }
 
-      if (data.user && !data.session) {
-        setEmailSent(true);
-      } else if (data.session) {
-        window.location.href = "/";
-      }
+      setEmailSent(true);
     });
   };
 
@@ -72,10 +55,9 @@ export default function SignUpPage() {
               Check Your Email
             </h2>
             <p className="text-sm text-muted-foreground font-body mt-3 leading-relaxed">
-              We sent a verification link to{" "}
-              <span className="text-foreground font-medium">{email}</span>.
-              <br />
-              Click the link to activate your account.
+              If an account exists for{" "}
+              <span className="text-foreground font-medium">{email}</span>,
+              we&apos;ve sent a password reset link.
             </p>
           </div>
           <div className="pt-2 space-y-3">
@@ -106,7 +88,7 @@ export default function SignUpPage() {
             Life RPG
           </h1>
           <p className="text-xs font-display tracking-[0.3em] text-muted-foreground uppercase mt-2">
-            A New Hero Rises
+            Reset Your Password
           </p>
         </div>
 
@@ -124,42 +106,18 @@ export default function SignUpPage() {
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="confirm-password">Confirm Password</Label>
-            <Input
-              id="confirm-password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-            />
-          </div>
-
           {error && (
             <div className="text-sm text-destructive font-body">{error}</div>
           )}
 
           <Button type="submit" disabled={isPending} className="w-full">
-            {isPending ? "Forging..." : "Forge Your Destiny"}
+            {isPending ? "Sending..." : "Send Reset Link"}
           </Button>
         </form>
 
         <div className="text-center">
           <p className="text-sm font-body text-muted-foreground">
-            Already have an account?{" "}
+            Remember your password?{" "}
             <Link
               href="/login"
               className="text-primary hover:text-primary/80 transition-colors"

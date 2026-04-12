@@ -8,7 +8,11 @@ export const dynamic = "force-dynamic";
 export default async function NewQuestPage() {
   const userId = await getAuthUser();
   const [skills, chains] = await Promise.all([
-    db.skill.findMany({ where: { userId }, orderBy: { name: "asc" } }),
+    db.skill.findMany({
+      where: { userId, parentId: null },
+      include: { children: { orderBy: { name: "asc" } } },
+      orderBy: { name: "asc" },
+    }),
     db.questChain.findMany({ where: { userId }, orderBy: { name: "asc" } }),
   ]);
 

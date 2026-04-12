@@ -14,6 +14,10 @@ import { getCharacterForUser } from "@/lib/character";
 import { getAuthUser } from "@/lib/auth";
 import { isCompletedToday, isStreakBroken } from "@/lib/daily";
 import { startOfToday } from "@/lib/utils";
+import { cleanupOrphanedSkill, propagateXpToParent } from "@/actions/skill-actions";
+import { CHAIN_TIER_BONUS, type ChainTier } from "@/lib/realms";
+import { revalidateApp } from "@/lib/revalidate";
+import { refundCharacterXp, refundSkillXp } from "@/lib/xp-operations";
 
 export async function createQuest(input: {
   title: string;
@@ -33,6 +37,15 @@ export async function createQuest(input: {
     }
     const difficulty = Math.max(1, Math.min(5, input.difficulty || 2));
     const xpReward = XP_BY_DIFFICULTY[difficulty];
+
+    if (input.chainId) {
+      const chain = await db.questChain.findFirst({ where: { id: input.chainId, userId } });
+      if (!chain) return { success: false, error: "Chain not found" };
+    }
+    if (input.skillId) {
+      const skill = await db.skill.findFirst({ where: { id: input.skillId, userId } });
+      if (!skill) return { success: false, error: "Skill not found" };
+    }
 
     if (input.chainId && input.chainOrder != null) {
       const existing = await db.quest.findMany({
@@ -82,9 +95,10 @@ export async function createQuest(input: {
     revalidatePath("/daily");
     return { success: true, data: { id: quest.id } };
   } catch (err) {
+    console.error("createQuest failed:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to create quest",
+      error: "Failed to create quest",
     };
   }
 }
@@ -107,6 +121,10 @@ export async function updateQuest(
     }
     const existing = await db.quest.findFirst({ where: { id, userId } });
     if (!existing) return { success: false, error: "Quest not found" };
+    if (data.skillId) {
+      const skill = await db.skill.findFirst({ where: { id: data.skillId, userId } });
+      if (!skill) return { success: false, error: "Skill not found" };
+    }
     await db.quest.update({
       where: { id },
       data,
@@ -117,9 +135,10 @@ export async function updateQuest(
     revalidatePath("/daily");
     return { success: true };
   } catch (err) {
+    console.error("updateQuest failed:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to update",
+      error: "Failed to update quest",
     };
   }
 }
@@ -191,27 +210,9 @@ export async function deleteQuest(id: string): Promise<ActionResult> {
     );
 
     if (totalXpRefund > 0) {
-      const character = await getCharacterForUser(userId);
-      if (character) {
-        const newCharTotal = Math.max(0, character.totalXp - totalXpRefund);
-        const { level: newCharLevel } = computeLevel(newCharTotal);
-        await db.character.update({
-          where: { userId },
-          data: {
-            totalXp: newCharTotal,
-            level: newCharLevel,
-            title: titleForLevel(newCharLevel),
-          },
-        });
-      }
-
+      await refundCharacterXp(userId, totalXpRefund);
       if (quest.skill) {
-        const newSkillTotal = Math.max(0, quest.skill.totalXp - totalXpRefund);
-        const { level: newSkillLevel } = computeLevel(newSkillTotal);
-        await db.skill.update({
-          where: { id: quest.skill.id },
-          data: { totalXp: newSkillTotal, level: newSkillLevel },
-        });
+        await refundSkillXp(quest.skill.id, totalXpRefund);
       }
     }
 
@@ -223,28 +224,20 @@ export async function deleteQuest(id: string): Promise<ActionResult> {
     }
 
     if (quest.skill) {
-      const remainingQuests = await db.quest.count({
-        where: { skillId: quest.skill.id, userId },
-      });
-      if (remainingQuests === 0) {
-        await db.skill.delete({ where: { id: quest.skill.id } });
-      }
+      await cleanupOrphanedSkill(quest.skill.id, userId);
     }
 
     await reconcileAchievements(userId);
 
-    revalidatePath("/");
-    revalidatePath("/quests");
-    revalidatePath("/daily");
-    revalidatePath("/character");
-    revalidatePath("/skills");
-    revalidatePath("/achievements");
-    if (quest.chainId) revalidatePath(`/chains/${quest.chainId}`);
+    revalidateApp(
+      ...(quest.chainId ? [`/chains/${quest.chainId}`] : []),
+    );
     return { success: true };
   } catch (err) {
+    console.error("deleteQuest failed:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to delete",
+      error: "Failed to delete quest",
     };
   }
 }
@@ -340,6 +333,7 @@ export async function completeQuest(id: string): Promise<ActionResult> {
         where: { id: quest.skill.id },
         data: { totalXp: newSkillXp, level: newSkillLevel },
       });
+      await propagateXpToParent(quest.skill.id, xpToAward);
     }
 
     if (quest.chainId && quest.chainOrder != null) {
@@ -365,12 +359,36 @@ export async function completeQuest(id: string): Promise<ActionResult> {
           chainId: quest.chainId,
           chainName: quest.chain?.name ?? "Chain",
         };
+
+        const tier = (quest.chain?.tier ?? "common") as ChainTier;
+        const bonusMultiplier = CHAIN_TIER_BONUS[tier] ?? 0;
+        if (bonusMultiplier > 0) {
+          const chainTotalXp = chainQuests.reduce((sum, q) => sum + q.xpReward, 0);
+          const bonusXp = Math.round(chainTotalXp * bonusMultiplier);
+          if (bonusXp > 0) {
+            const charAfter = await getCharacterForUser(userId);
+            if (charAfter) {
+              const newBonusTotal = charAfter.totalXp + bonusXp;
+              const { level: bonusLevel } = computeLevel(newBonusTotal);
+              await db.character.update({
+                where: { userId },
+                data: {
+                  totalXp: newBonusTotal,
+                  level: bonusLevel,
+                  title: titleForLevel(bonusLevel),
+                },
+              });
+            }
+            events.xpAwarded = (events.xpAwarded ?? 0) + bonusXp;
+          }
+        }
+
         await db.activityLog.create({
           data: {
             userId,
             type: "chain_complete",
             message: `Chain completed: ${quest.chain?.name}`,
-            metadata: JSON.stringify({ chainId: quest.chainId }),
+            metadata: JSON.stringify({ chainId: quest.chainId, tier }),
           },
         });
       }
@@ -411,19 +429,16 @@ export async function completeQuest(id: string): Promise<ActionResult> {
 
     events.achievementsUnlocked = await checkAchievements(userId);
 
-    revalidatePath("/");
-    revalidatePath("/quests");
-    revalidatePath("/daily");
-    revalidatePath("/character");
-    revalidatePath("/skills");
-    revalidatePath("/achievements");
-    if (quest.chainId) revalidatePath(`/chains/${quest.chainId}`);
+    revalidateApp(
+      ...(quest.chainId ? [`/chains/${quest.chainId}`] : []),
+    );
 
     return { success: true, events };
   } catch (err) {
+    console.error("completeQuest failed:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to complete quest",
+      error: "Failed to complete quest",
     };
   }
 }
@@ -474,6 +489,7 @@ export async function undoDailyCompletion(id: string): Promise<ActionResult> {
         where: { id: quest.skill.id },
         data: { totalXp: newSkillXp, level: newSkillLevel },
       });
+      await propagateXpToParent(quest.skill.id, -todayCompletion.xpAwarded);
     }
 
     const streak = await db.dailyStreak.findUnique({
@@ -489,17 +505,13 @@ export async function undoDailyCompletion(id: string): Promise<ActionResult> {
     await deleteActivityForQuest(id, userId);
     await reconcileAchievements(userId);
 
-    revalidatePath("/");
-    revalidatePath("/quests");
-    revalidatePath("/daily");
-    revalidatePath("/character");
-    revalidatePath("/skills");
-    revalidatePath("/achievements");
+    revalidateApp();
     return { success: true };
   } catch (err) {
+    console.error("undoDailyCompletion failed:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to undo",
+      error: "Failed to undo completion",
     };
   }
 }
@@ -543,6 +555,7 @@ export async function uncompleteQuest(id: string): Promise<ActionResult> {
           where: { id: quest.skill.id },
           data: { totalXp: newSkillXp, level: newSkillLevel },
         });
+        await propagateXpToParent(quest.skill.id, -lastCompletion.xpAwarded);
       }
     }
 
@@ -560,16 +573,13 @@ export async function uncompleteQuest(id: string): Promise<ActionResult> {
 
     await reconcileAchievements(userId);
 
-    revalidatePath("/");
-    revalidatePath("/quests");
-    revalidatePath("/character");
-    revalidatePath("/skills");
-    revalidatePath("/achievements");
+    revalidateApp();
     return { success: true };
   } catch (err) {
+    console.error("uncompleteQuest failed:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to undo",
+      error: "Failed to undo completion",
     };
   }
 }

@@ -20,28 +20,28 @@ export default async function DailyPage({
   const { view } = await searchParams;
   const filter = view ?? "today";
 
-  const allStreaks = await db.dailyStreak.findMany({ where: { userId } });
-  for (const s of allStreaks) {
-    if (s.currentStreak > 0 && isStreakBroken(s.lastCompleted)) {
-      await db.dailyStreak.update({
-        where: { id: s.id },
-        data: { currentStreak: 0 },
-      });
-    }
-  }
-
-  const dailyQuests = await db.quest.findMany({
-    where: { userId, isDaily: true },
-    include: {
-      skill: true,
-      completions: {
-        where: { completedAt: { gte: startOfToday() } },
-        take: 1,
+  const [, dailyQuests] = await Promise.all([
+    // Reset broken streaks (side-effect, no return value needed)
+    db.dailyStreak.findMany({ where: { userId } }).then(async (allStreaks) => {
+      const resets = allStreaks
+        .filter((s) => s.currentStreak > 0 && isStreakBroken(s.lastCompleted))
+        .map((s) => db.dailyStreak.update({ where: { id: s.id }, data: { currentStreak: 0 } }));
+      await Promise.all(resets);
+    }),
+    db.quest.findMany({
+      where: { userId, isDaily: true },
+      include: {
+        skill: true,
+        completions: {
+          where: { completedAt: { gte: startOfToday() } },
+          take: 1,
+        },
       },
-    },
-    orderBy: { createdAt: "asc" },
-  });
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
 
+  // Re-fetch streaks after resets are applied
   const streaks = await db.dailyStreak.findMany({ where: { userId } });
   const streakByQuest = new Map(streaks.map((s) => [s.questId, s]));
 

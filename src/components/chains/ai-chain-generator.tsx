@@ -21,6 +21,7 @@ import type { GeneratedChain } from "@/actions/ai-actions";
 import { handleActionResult } from "@/components/shared/action-handler";
 import { Sparkles, Wand2, Zap, RotateCw, Check, PenLine } from "lucide-react";
 import { XP_BY_DIFFICULTY } from "@/lib/xp";
+import { getChainTier } from "@/lib/realms";
 
 const EXAMPLES = [
   {
@@ -244,9 +245,20 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                     {generated.chainName}
                   </div>
                 </div>
-                <Badge variant="gold" className="flex-shrink-0">
-                  {generated.quests.length} Quest{generated.quests.length === 1 ? "" : "s"}
-                </Badge>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {generated.tier && generated.tier !== "common" && (
+                    <Badge
+                      variant="outline"
+                      className="text-[9px]"
+                      style={{ borderColor: getChainTier(generated.tier)?.color, color: getChainTier(generated.tier)?.color }}
+                    >
+                      {getChainTier(generated.tier)?.name}
+                    </Badge>
+                  )}
+                  <Badge variant="gold">
+                    {generated.quests.length} Quest{generated.quests.length === 1 ? "" : "s"}
+                  </Badge>
+                </div>
               </div>
               <p className="text-sm text-muted-foreground font-body mt-2">
                 {generated.chainDescription}
@@ -281,10 +293,11 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                         <p className="text-xs text-muted-foreground font-body mt-1">
                           {quest.description}
                         </p>
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <DifficultyStars difficulty={d} />
                           <Badge variant="outline" className="text-[9px]">
-                            {quest.skillName}
+                            {quest.disciplineName}
+                            {quest.skillName ? ` › ${quest.skillName}` : ""}
                           </Badge>
                         </div>
                       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import * as LucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -15,7 +15,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { SKILL_COLOR_PRESETS, SKILL_ICON_PRESETS } from "@/lib/constants";
+import { REALMS, type RealmSlug } from "@/lib/realms";
 import { createSkill, updateSkill } from "@/actions/skill-actions";
 import { handleActionResult } from "@/components/shared/action-handler";
 import { cn } from "@/lib/utils";
@@ -26,38 +33,83 @@ function getIcon(name: string): LucideIcon {
   return icons[name] ?? LucideIcons.Sword;
 }
 
+interface Discipline {
+  id: string;
+  name: string;
+  realm: string | null;
+}
+
 interface Props {
   skill?: {
     id: string;
     name: string;
     icon: string;
     color: string;
+    realm?: string | null;
+    parentId?: string | null;
   };
+  disciplines?: Discipline[];
   trigger?: React.ReactNode;
 }
 
-export function SkillForm({ skill, trigger }: Props) {
+export function SkillForm({ skill, disciplines = [], trigger }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [name, setName] = useState(skill?.name ?? "");
+
+  const isEditing = !!skill;
+  const [realm, setRealm] = useState<RealmSlug | "">(
+    (skill?.realm as RealmSlug) ?? ""
+  );
+  const [disciplineName, setDisciplineName] = useState(
+    isEditing ? skill.name : ""
+  );
+  const [subSkillName, setSubSkillName] = useState("");
   const [icon, setIcon] = useState(skill?.icon ?? "Sword");
   const [color, setColor] = useState(skill?.color ?? SKILL_COLOR_PRESETS[0]);
 
+  const filteredDisciplines = useMemo(
+    () => (realm ? disciplines.filter((d) => d.realm === realm) : []),
+    [realm, disciplines]
+  );
+
+  const reset = () => {
+    setRealm("");
+    setDisciplineName("");
+    setSubSkillName("");
+    setIcon("Sword");
+    setColor(SKILL_COLOR_PRESETS[0]);
+  };
+
   const onSubmit = () => {
     startTransition(async () => {
-      const result = skill
-        ? await updateSkill(skill.id, { name, icon, color })
-        : await createSkill({ name, icon, color });
-      handleActionResult(result);
-      if (result.success) {
-        setOpen(false);
-        if (!skill) {
-          setName("");
-          setIcon("Sword");
-          setColor(SKILL_COLOR_PRESETS[0]);
+      if (isEditing) {
+        const result = await updateSkill(skill.id, {
+          name: disciplineName,
+          icon,
+          color,
+          ...(skill.parentId ? {} : { realm: realm || undefined }),
+        });
+        handleActionResult(result);
+        if (result.success) {
+          setOpen(false);
+          router.refresh();
         }
-        router.refresh();
+      } else {
+        if (!realm) return;
+        const result = await createSkill({
+          realm,
+          disciplineName,
+          subSkillName: subSkillName || undefined,
+          icon,
+          color,
+        });
+        handleActionResult(result);
+        if (result.success) {
+          setOpen(false);
+          reset();
+          router.refresh();
+        }
       }
     });
   };
@@ -68,26 +120,137 @@ export function SkillForm({ skill, trigger }: Props) {
         {trigger ?? (
           <Button variant="ghost">
             <Plus className="w-4 h-4" />
-            New Skill
+            New Discipline
           </Button>
         )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{skill ? "Edit Skill" : "Forge New Skill"}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? "Edit Skill" : "Forge New Discipline"}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          {!isEditing && (
+            <div>
+              <Label>Realm</Label>
+              <TooltipProvider delayDuration={300}>
+                <div className="mt-1.5 grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {REALMS.map((r) => {
+                    const I = getIcon(r.icon);
+                    return (
+                      <Tooltip key={r.slug}>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => setRealm(r.slug)}
+                            className={cn(
+                              "py-2.5 border flex flex-col items-center gap-1.5 transition-all",
+                              realm === r.slug
+                                ? "border-primary bg-primary/10"
+                                : "border-border bg-card hover:border-primary/50"
+                            )}
+                          >
+                            <I
+                              className="w-4 h-4"
+                              style={{ color: r.color }}
+                            />
+                            <span
+                              className="text-[9px] font-display uppercase tracking-widest"
+                              style={{ color: realm === r.slug ? r.color : undefined }}
+                            >
+                              {r.name}
+                            </span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          {r.description}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              </TooltipProvider>
+            </div>
+          )}
+
+          {(isEditing && !skill.parentId) && (
+            <div>
+              <Label>Realm</Label>
+              <TooltipProvider delayDuration={300}>
+                <div className="mt-1.5 grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {REALMS.map((r) => {
+                    const I = getIcon(r.icon);
+                    return (
+                      <Tooltip key={r.slug}>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => setRealm(r.slug)}
+                            className={cn(
+                              "py-2.5 border flex flex-col items-center gap-1.5 transition-all",
+                              realm === r.slug
+                                ? "border-primary bg-primary/10"
+                                : "border-border bg-card hover:border-primary/50"
+                            )}
+                          >
+                            <I className="w-4 h-4" style={{ color: r.color }} />
+                            <span
+                              className="text-[9px] font-display uppercase tracking-widest"
+                              style={{ color: realm === r.slug ? r.color : undefined }}
+                            >
+                              {r.name}
+                            </span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          {r.description}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              </TooltipProvider>
+            </div>
+          )}
+
           <div>
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="discipline-name">
+              {isEditing ? "Name" : "Discipline Name"}
+            </Label>
             <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Fitness, Coding, Music"
+              id="discipline-name"
+              value={disciplineName}
+              onChange={(e) => setDisciplineName(e.target.value)}
+              placeholder="e.g. Archery, Cooking, Woodworking"
               className="mt-1.5"
+              list={!isEditing && filteredDisciplines.length > 0 ? "discipline-suggestions" : undefined}
             />
+            {!isEditing && filteredDisciplines.length > 0 && (
+              <datalist id="discipline-suggestions">
+                {filteredDisciplines.map((d) => (
+                  <option key={d.id} value={d.name} />
+                ))}
+              </datalist>
+            )}
           </div>
+
+          {!isEditing && (
+            <div>
+              <Label htmlFor="subskill-name">Sub-skill (optional)</Label>
+              <Input
+                id="subskill-name"
+                value={subSkillName}
+                onChange={(e) => setSubSkillName(e.target.value)}
+                placeholder="e.g. Compound Bow, Grilling"
+                className="mt-1.5"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Leave blank for a discipline-only skill.
+              </p>
+            </div>
+          )}
 
           <div>
             <Label>Icon</Label>
@@ -136,8 +299,15 @@ export function SkillForm({ skill, trigger }: Props) {
           <Button variant="ghost" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={onSubmit} disabled={isPending || !name.trim()}>
-            {isPending ? "Saving..." : skill ? "Save" : "Create"}
+          <Button
+            onClick={onSubmit}
+            disabled={
+              isPending ||
+              !disciplineName.trim() ||
+              (!isEditing && !realm)
+            }
+          >
+            {isPending ? "Saving..." : isEditing ? "Save" : "Create"}
           </Button>
         </DialogFooter>
       </DialogContent>

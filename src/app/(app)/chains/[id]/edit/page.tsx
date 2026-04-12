@@ -21,7 +21,11 @@ export default async function EditChainPage({
         quests: { orderBy: { chainOrder: "asc" } },
       },
     }),
-    db.skill.findMany({ where: { userId }, orderBy: { name: "asc" } }),
+    db.skill.findMany({
+      where: { userId, parentId: null },
+      include: { children: { orderBy: { name: "asc" } } },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   if (!chain) notFound();

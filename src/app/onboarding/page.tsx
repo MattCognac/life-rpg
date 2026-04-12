@@ -6,6 +6,9 @@ import { CHARACTER_CLASSES, CLASS_KEYS, type CharacterClass } from "@/lib/classe
 import { ClassIcon } from "@/components/shared/class-icon";
 import { cn } from "@/lib/utils";
 import { createCharacter } from "@/actions/character-actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type Step = "name" | "class" | "confirm";
 
@@ -67,31 +70,24 @@ export default function OnboardingPage() {
               </div>
 
               <form onSubmit={handleNameSubmit} className="space-y-6 max-w-sm mx-auto">
-                <div>
-                  <label
-                    htmlFor="hero-name"
-                    className="block text-xs font-display uppercase tracking-[0.3em] text-muted-foreground mb-2"
-                  >
+                <div className="space-y-2">
+                  <Label htmlFor="hero-name">
                     What shall the realm know you as?
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="hero-name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     autoFocus
                     maxLength={30}
-                    className="w-full px-4 py-3 bg-input border border-border text-foreground text-center text-lg font-display tracking-wider focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                    className="text-center text-lg font-display tracking-wider"
                     placeholder="Enter your name"
                   />
                 </div>
-                <button
-                  type="submit"
-                  disabled={!name.trim()}
-                  className="btn-norse w-full"
-                >
+                <Button type="submit" disabled={!name.trim()} className="w-full">
                   Continue
-                </button>
+                </Button>
               </form>
             </div>
           </div>
@@ -175,13 +171,9 @@ export default function OnboardingPage() {
               )}
 
               <div className="space-y-3 max-w-xs mx-auto">
-                <button
-                  onClick={handleConfirm}
-                  disabled={isPending}
-                  className="btn-norse w-full"
-                >
+                <Button onClick={handleConfirm} disabled={isPending} className="w-full">
                   {isPending ? "Entering..." : "Enter the Realm"}
-                </button>
+                </Button>
                 <button
                   onClick={() => setStep("class")}
                   disabled={isPending}

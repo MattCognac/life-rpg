@@ -3,11 +3,12 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/types";
-import { computeLevel, titleForLevel } from "@/lib/xp";
-import { getCharacterForUser } from "@/lib/character";
 import { getAuthUser } from "@/lib/auth";
 import { reconcileAchievements } from "@/lib/achievements";
 import { reconcileChainLocks } from "@/actions/quest-actions";
+import { cleanupOrphanedSkill } from "@/actions/skill-actions";
+import { revalidateApp } from "@/lib/revalidate";
+import { refundCharacterXp, refundSkillXp } from "@/lib/xp-operations";
 
 export async function createChain(input: {
   name: string;
@@ -26,9 +27,10 @@ export async function createChain(input: {
     revalidatePath("/chains");
     return { success: true, data: { id: chain.id } };
   } catch (err) {
+    console.error("createChain failed:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed",
+      error: "Failed to create chain",
     };
   }
 }
@@ -52,7 +54,8 @@ export async function updateChain(
     revalidatePath(`/chains/${id}`);
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Failed" };
+    console.error("updateChain failed:", err);
+    return { success: false, error: "Failed to update chain" };
   }
 }
 
@@ -87,31 +90,9 @@ export async function deleteChain(id: string): Promise<ActionResult> {
       }
     }
 
-    if (characterXpRefund > 0) {
-      const character = await getCharacterForUser(userId);
-      if (character) {
-        const newTotal = Math.max(0, character.totalXp - characterXpRefund);
-        const { level: newLevel } = computeLevel(newTotal);
-        await db.character.update({
-          where: { userId },
-          data: {
-            totalXp: newTotal,
-            level: newLevel,
-            title: titleForLevel(newLevel),
-          },
-        });
-      }
-    }
-
+    await refundCharacterXp(userId, characterXpRefund);
     for (const [skillId, xp] of skillXpRefund) {
-      const skill = await db.skill.findUnique({ where: { id: skillId } });
-      if (!skill) continue;
-      const newTotal = Math.max(0, skill.totalXp - xp);
-      const { level: newLevel } = computeLevel(newTotal);
-      await db.skill.update({
-        where: { id: skillId },
-        data: { totalXp: newTotal, level: newLevel },
-      });
+      await refundSkillXp(skillId, xp);
     }
 
     for (const quest of chain.quests) {
@@ -126,26 +107,19 @@ export async function deleteChain(id: string): Promise<ActionResult> {
     await db.questChain.delete({ where: { id } });
 
     for (const skillId of affectedSkillIds) {
-      const remaining = await db.quest.count({ where: { skillId, userId } });
-      if (remaining === 0) {
-        await db.skill.delete({ where: { id: skillId } });
-      }
+      await cleanupOrphanedSkill(skillId, userId);
     }
 
     await reconcileAchievements(userId);
 
-    revalidatePath("/");
-    revalidatePath("/chains");
-    revalidatePath("/quests");
-    revalidatePath("/character");
-    revalidatePath("/skills");
-    revalidatePath("/achievements");
+    revalidateApp();
 
     return { success: true };
   } catch (err) {
+    console.error("deleteChain failed:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to delete chain",
+      error: "Failed to delete chain",
     };
   }
 }
@@ -188,31 +162,9 @@ export async function removeQuestsFromChain(
       await db.dailyStreak.deleteMany({ where: { questId: quest.id, userId } });
     }
 
-    if (characterXpRefund > 0) {
-      const character = await getCharacterForUser(userId);
-      if (character) {
-        const newTotal = Math.max(0, character.totalXp - characterXpRefund);
-        const { level: newLevel } = computeLevel(newTotal);
-        await db.character.update({
-          where: { userId },
-          data: {
-            totalXp: newTotal,
-            level: newLevel,
-            title: titleForLevel(newLevel),
-          },
-        });
-      }
-    }
-
+    await refundCharacterXp(userId, characterXpRefund);
     for (const [skillId, xp] of skillXpRefund) {
-      const skill = await db.skill.findUnique({ where: { id: skillId } });
-      if (!skill) continue;
-      const newTotal = Math.max(0, skill.totalXp - xp);
-      const { level: newLevel } = computeLevel(newTotal);
-      await db.skill.update({
-        where: { id: skillId },
-        data: { totalXp: newTotal, level: newLevel },
-      });
+      await refundSkillXp(skillId, xp);
     }
 
     const affectedSkillIds = [
@@ -237,27 +189,19 @@ export async function removeQuestsFromChain(
     await reconcileChainLocks(chainId, userId);
 
     for (const skillId of affectedSkillIds) {
-      const count = await db.quest.count({ where: { skillId, userId } });
-      if (count === 0) {
-        await db.skill.delete({ where: { id: skillId } });
-      }
+      await cleanupOrphanedSkill(skillId, userId);
     }
 
     await reconcileAchievements(userId);
 
-    revalidatePath("/");
-    revalidatePath("/chains");
-    revalidatePath(`/chains/${chainId}`);
-    revalidatePath("/quests");
-    revalidatePath("/character");
-    revalidatePath("/skills");
-    revalidatePath("/achievements");
+    revalidateApp(`/chains/${chainId}`);
 
     return { success: true };
   } catch (err) {
+    console.error("removeQuestsFromChain failed:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to remove quests",
+      error: "Failed to remove quests",
     };
   }
 }

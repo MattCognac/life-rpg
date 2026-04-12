@@ -26,6 +26,9 @@ interface Skill {
   id: string;
   name: string;
   color: string;
+  realm?: string | null;
+  parentId?: string | null;
+  children?: Array<{ id: string; name: string; color: string }>;
 }
 
 interface Chain {
@@ -184,9 +187,16 @@ export function QuestForm({
           <SelectContent>
             <SelectItem value="none">No skill</SelectItem>
             {skills.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
+              <div key={s.id}>
+                <SelectItem value={s.id}>
+                  {s.name}
+                </SelectItem>
+                {s.children?.map((child) => (
+                  <SelectItem key={child.id} value={child.id}>
+                    &nbsp;&nbsp;↳ {child.name}
+                  </SelectItem>
+                ))}
+              </div>
             ))}
           </SelectContent>
         </Select>

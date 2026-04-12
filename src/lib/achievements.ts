@@ -5,7 +5,7 @@ export interface AchievementDef {
   name: string;
   description: string;
   icon: string;
-  category: "general" | "quests" | "levels" | "skills" | "streaks" | "difficulty";
+  category: "general" | "quests" | "levels" | "skills" | "streaks" | "difficulty" | "realms";
   sortOrder: number;
   check: (stats: AchievementStats) => boolean;
 }
@@ -18,6 +18,8 @@ export interface AchievementStats {
   skillCount: number;
   skillLevels: number[];
   longestStreak: number;
+  realmsActive: number;
+  crossRealmChains: number;
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -35,11 +37,14 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: "LEVEL_30", name: "Champion", description: "Reach character level 30", icon: "trophy", category: "levels", sortOrder: 13, check: (s) => s.characterLevel >= 30 },
   { key: "LEVEL_50", name: "Living Legend", description: "Reach character level 50", icon: "sparkles", category: "levels", sortOrder: 14, check: (s) => s.characterLevel >= 50 },
 
-  { key: "FIRST_SKILL", name: "Skillful", description: "Create your first skill", icon: "sparkles", category: "skills", sortOrder: 20, check: (s) => s.skillCount >= 1 },
-  { key: "FIVE_SKILLS", name: "Well Rounded", description: "Have 5 different skills", icon: "layers", category: "skills", sortOrder: 21, check: (s) => s.skillCount >= 5 },
-  { key: "SKILL_LEVEL_5", name: "Specialist", description: "Reach level 5 in any skill", icon: "zap", category: "skills", sortOrder: 22, check: (s) => s.skillLevels.some((l) => l >= 5) },
-  { key: "SKILL_LEVEL_10", name: "Expert", description: "Reach level 10 in any skill", icon: "flame", category: "skills", sortOrder: 23, check: (s) => s.skillLevels.some((l) => l >= 10) },
-  { key: "ALL_SKILLS_5", name: "Jack of All Trades", description: "Reach level 5 in at least 3 skills", icon: "gem", category: "skills", sortOrder: 24, check: (s) => s.skillLevels.filter((l) => l >= 5).length >= 3 },
+  { key: "FIRST_SKILL", name: "Apprentice", description: "Create your first discipline", icon: "sparkles", category: "skills", sortOrder: 20, check: (s) => s.skillCount >= 1 },
+  { key: "FIVE_SKILLS", name: "Well Rounded", description: "Have 5 different disciplines", icon: "layers", category: "skills", sortOrder: 21, check: (s) => s.skillCount >= 5 },
+  { key: "SKILL_LEVEL_5", name: "Specialist", description: "Reach level 5 in any discipline", icon: "zap", category: "skills", sortOrder: 22, check: (s) => s.skillLevels.some((l) => l >= 5) },
+  { key: "SKILL_LEVEL_10", name: "Expert", description: "Reach level 10 in any discipline", icon: "flame", category: "skills", sortOrder: 23, check: (s) => s.skillLevels.some((l) => l >= 10) },
+  { key: "ALL_SKILLS_5", name: "Jack of All Trades", description: "Reach level 5 in at least 3 disciplines", icon: "gem", category: "skills", sortOrder: 24, check: (s) => s.skillLevels.filter((l) => l >= 5).length >= 3 },
+
+  { key: "REALM_EXPLORER", name: "Realm Explorer", description: "Have active disciplines in all 6 realms", icon: "compass", category: "realms", sortOrder: 25, check: (s) => s.realmsActive >= 6 },
+  { key: "CROSS_REALM_CHAIN", name: "Realm Walker", description: "Complete a quest chain spanning 2+ realms", icon: "map", category: "realms", sortOrder: 26, check: (s) => s.crossRealmChains >= 1 },
 
   { key: "STREAK_3", name: "Consistent", description: "Maintain a 3-day streak", icon: "flame", category: "streaks", sortOrder: 30, check: (s) => s.longestStreak >= 3 },
   { key: "STREAK_7", name: "Weekly Warrior", description: "Maintain a 7-day streak", icon: "flame", category: "streaks", sortOrder: 31, check: (s) => s.longestStreak >= 7 },
@@ -57,7 +62,7 @@ export async function gatherAchievementStats(userId: string): Promise<Achievemen
     totalCompletions,
     completionsByDiff,
     character,
-    skills,
+    disciplines,
     streaks,
     chainsWithQuests,
   ] = await Promise.all([
@@ -74,11 +79,18 @@ export async function gatherAchievementStats(userId: string): Promise<Achievemen
       return map;
     }),
     db.character.findUnique({ where: { userId } }),
-    db.skill.findMany({ where: { userId }, select: { level: true } }),
+    db.skill.findMany({
+      where: { userId, parentId: null },
+      select: { level: true, realm: true },
+    }),
     db.dailyStreak.findMany({ where: { userId }, select: { longestStreak: true } }),
     db.questChain.findMany({
       where: { userId },
-      include: { quests: { select: { status: true } } },
+      include: {
+        quests: {
+          select: { status: true, skill: { select: { realm: true, parent: { select: { realm: true } } } } },
+        },
+      },
     }),
   ]);
 
@@ -86,14 +98,28 @@ export async function gatherAchievementStats(userId: string): Promise<Achievemen
     (c) => c.quests.length > 0 && c.quests.every((q) => q.status === "completed")
   ).length;
 
+  const activeRealms = new Set(disciplines.map((d) => d.realm).filter(Boolean));
+
+  const crossRealmChains = chainsWithQuests.filter((c) => {
+    if (c.quests.length === 0 || !c.quests.every((q) => q.status === "completed")) return false;
+    const realms = new Set<string>();
+    for (const q of c.quests) {
+      const r = q.skill?.realm ?? q.skill?.parent?.realm;
+      if (r) realms.add(r);
+    }
+    return realms.size >= 2;
+  }).length;
+
   return {
     totalCompletions,
     completionsByDifficulty: completionsByDiff,
     chainsCompleted,
     characterLevel: character?.level ?? 1,
-    skillCount: skills.length,
-    skillLevels: skills.map((s) => s.level),
+    skillCount: disciplines.length,
+    skillLevels: disciplines.map((s) => s.level),
     longestStreak: streaks.reduce((max, s) => Math.max(max, s.longestStreak), 0),
+    realmsActive: activeRealms.size,
+    crossRealmChains,
   };
 }
 

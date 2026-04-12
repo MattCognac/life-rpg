@@ -29,12 +29,20 @@ model Skill {
   color     String   @default("#dd6119")
   totalXp   Int      @default(0)
   level     Int      @default(1)
+
+  realm    String?
+  parentId String?
+  parent   Skill?  @relation("SkillTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Skill[] @relation("SkillTree")
+
   quests    Quest[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([userId, name])
   @@index([userId])
+  @@index([parentId])
+  @@index([userId, realm])
 }
 
 model Quest {
@@ -71,6 +79,7 @@ model QuestChain {
   userId      String
   name        String
   description String   @default("")
+  tier        String   @default("common")
   quests      Quest[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

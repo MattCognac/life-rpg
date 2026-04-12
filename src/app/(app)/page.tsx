@@ -17,6 +17,7 @@ import { Zap, Swords, Flame, Trophy } from "lucide-react";
 import { formatNumber, startOfToday } from "@/lib/utils";
 import Link from "next/link";
 import { isDailyActiveToday, isCompletedToday } from "@/lib/daily";
+import { REALMS } from "@/lib/realms";
 
 export const dynamic = "force-dynamic";
 
@@ -51,16 +52,11 @@ async function getXpHistory(userId: string): Promise<Array<{ date: string; xp: n
 
 export default async function DashboardPage() {
   const userId = await getAuthUser();
-  const character = await getCharacterForUser(userId);
-  if (!character) return null;
-
-  const { level, currentLevelXp, xpForNextLevel } = computeLevel(character.totalXp);
-  const title = titleForLevel(level);
-  const classDef = CHARACTER_CLASSES[character.class as CharacterClass];
 
   const [
+    character,
     xpHistory,
-    skills,
+    disciplines,
     activeQuests,
     dailyQuests,
     dailyStreaks,
@@ -70,12 +66,13 @@ export default async function DashboardPage() {
     activityEntries,
     recentAchievements,
   ] = await Promise.all([
+    getCharacterForUser(userId),
     getXpHistory(userId),
-    db.skill.findMany({ where: { userId }, orderBy: { totalXp: "desc" }, take: 8 }),
+    db.skill.findMany({ where: { userId, parentId: null }, orderBy: { totalXp: "desc" } }),
     db.quest.findMany({
       where: { userId, status: "active", isDaily: false },
       include: {
-        skill: true,
+        skill: { include: { parent: { select: { name: true } } } },
         chain: {
           include: { quests: { select: { status: true } } },
         },
@@ -109,11 +106,25 @@ export default async function DashboardPage() {
       take: 4,
     }),
   ]);
+  if (!character) return null;
+
+  const { level, currentLevelXp, xpForNextLevel } = computeLevel(character.totalXp);
+  const title = titleForLevel(level);
+  const classDef = CHARACTER_CLASSES[character.class as CharacterClass];
 
   const activeDailies = dailyQuests.filter((q) => isDailyActiveToday(q.dailyCron));
   const streakByQuest = new Map(dailyStreaks.map((s) => [s.questId, s]));
 
-  const radarData = skills.map((s) => ({ skill: s.name, level: s.level }));
+  const realmXpMap = new Map<string, number>();
+  for (const d of disciplines) {
+    if (!d.realm) continue;
+    realmXpMap.set(d.realm, (realmXpMap.get(d.realm) ?? 0) + d.totalXp);
+  }
+  const radarData = REALMS.map((r) => ({
+    realm: r.name,
+    level: computeLevel(realmXpMap.get(r.slug) ?? 0).level,
+    color: r.color,
+  }));
 
   const stats = [
     { label: "XP", value: formatNumber(character.totalXp), Icon: Zap },
@@ -213,15 +224,9 @@ export default async function DashboardPage() {
         </div>
         <div data-tutorial="skills" className="norse-card p-5 h-fit">
           <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground mb-4">
-            Skill Mastery
+            Realm Mastery
           </h2>
-          {radarData.length >= 3 ? (
-            <SkillRadar data={radarData} />
-          ) : (
-            <div className="h-[260px] flex items-center justify-center text-xs text-muted-foreground text-center px-4">
-              Create at least 3 skills to see your skill radar.
-            </div>
-          )}
+          <SkillRadar data={radarData} />
         </div>
       </div>
 

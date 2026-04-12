@@ -17,21 +17,22 @@ export default async function QuestsPage({
   const { status } = await searchParams;
   const filter = status ?? "active";
 
-  const quests = await db.quest.findMany({
-    where: {
-      userId,
-      isDaily: false,
-      ...(filter === "all" ? {} : { status: filter }),
-    },
-    include: { skill: true },
-    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-  });
-
-  const counts = await db.quest.groupBy({
-    by: ["status"],
-    _count: true,
-    where: { userId, isDaily: false },
-  });
+  const [quests, counts] = await Promise.all([
+    db.quest.findMany({
+      where: {
+        userId,
+        isDaily: false,
+        ...(filter === "all" ? {} : { status: filter }),
+      },
+      include: { skill: { include: { parent: { select: { name: true } } } } },
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    }),
+    db.quest.groupBy({
+      by: ["status"],
+      _count: true,
+      where: { userId, isDaily: false },
+    }),
+  ]);
   const countMap = Object.fromEntries(counts.map((c) => [c.status, c._count]));
 
   const tabs = [

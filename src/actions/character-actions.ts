@@ -25,7 +25,8 @@ export async function renameCharacter(name: string): Promise<ActionResult> {
     revalidatePath("/character");
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Failed" };
+    console.error("renameCharacter failed:", err);
+    return { success: false, error: "Failed to rename character" };
   }
 }
 
@@ -47,7 +48,8 @@ export async function changeClass(newClass: string): Promise<ActionResult> {
     revalidatePath("/character");
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Failed" };
+    console.error("changeClass failed:", err);
+    return { success: false, error: "Failed to change class" };
   }
 }
 
@@ -61,7 +63,8 @@ export async function completeTutorial(): Promise<ActionResult> {
     revalidatePath("/");
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Failed" };
+    console.error("completeTutorial failed:", err);
+    return { success: false, error: "Failed to complete tutorial" };
   }
 }
 
@@ -115,6 +118,7 @@ export async function createCharacter(
     revalidatePath("/");
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Failed" };
+    console.error("createCharacter failed:", err);
+    return { success: false, error: "Failed to create character" };
   }
 }

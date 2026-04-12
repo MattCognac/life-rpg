@@ -9,27 +9,39 @@ import { LevelBadge } from "@/components/shared/level-badge";
 import { SkillCard } from "@/components/skills/skill-card";
 import { SkillForm } from "@/components/skills/skill-form";
 import { EditCharacter } from "@/components/character/edit-character";
+import { REALMS, getRealmBySlug } from "@/lib/realms";
 import { Zap, Swords, Flame, Trophy, Calendar } from "lucide-react";
+import * as LucideIcons from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+function getIcon(name: string): LucideIcon {
+  const icons = LucideIcons as unknown as Record<string, LucideIcon>;
+  return icons[name] ?? LucideIcons.Sword;
+}
+
 export default async function CharacterPage() {
   const userId = await getAuthUser();
-  const character = await getCharacterForUser(userId);
+
+  const [character, disciplines, completionCount, longestStreakRow, achievementsUnlocked] =
+    await Promise.all([
+      getCharacterForUser(userId),
+      db.skill.findMany({
+        where: { userId, parentId: null },
+        include: { children: { orderBy: { totalXp: "desc" } } },
+        orderBy: { totalXp: "desc" },
+      }),
+      db.questCompletion.count({ where: { userId } }),
+      db.dailyStreak.findFirst({ where: { userId }, orderBy: { longestStreak: "desc" } }),
+      db.achievement.count({ where: { userId, unlockedAt: { not: null } } }),
+    ]);
   if (!character) return null;
 
   const { level, currentLevelXp, xpForNextLevel } = computeLevel(character.totalXp);
   const title = titleForLevel(level);
   const classDef = CHARACTER_CLASSES[character.class as CharacterClass];
-
-  const [skills, completionCount, longestStreakRow, achievementsUnlocked] =
-    await Promise.all([
-      db.skill.findMany({ where: { userId }, orderBy: { totalXp: "desc" } }),
-      db.questCompletion.count({ where: { userId } }),
-      db.dailyStreak.findFirst({ where: { userId }, orderBy: { longestStreak: "desc" } }),
-      db.achievement.count({ where: { userId, unlockedAt: { not: null } } }),
-    ]);
 
   const daysActive = Math.floor(
     (Date.now() - new Date(character.createdAt).getTime()) / (1000 * 60 * 60 * 24)
@@ -49,6 +61,11 @@ export default async function CharacterPage() {
       Icon: Trophy,
     },
   ];
+
+  const realmGroups = REALMS.map((realm) => ({
+    realm,
+    disciplines: disciplines.filter((d) => d.realm === realm.slug),
+  })).filter((g) => g.disciplines.length > 0);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -118,23 +135,42 @@ export default async function CharacterPage() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display text-xl tracking-widest uppercase text-foreground">
-            Skills
+            Disciplines
           </h2>
-          <SkillForm />
+          <SkillForm disciplines={disciplines.map((d) => ({ id: d.id, name: d.name, realm: d.realm }))} />
         </div>
-        {skills.length === 0 ? (
+        {disciplines.length === 0 ? (
           <div className="norse-card p-8 text-center text-sm text-muted-foreground">
-            Forge your first skill to begin tracking mastery.
+            Forge your first discipline to begin tracking mastery.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {skills.map((skill) => (
-              <SkillCard
-                key={skill.id}
-                skill={skill}
-                href={`/skills/${skill.id}`}
-              />
-            ))}
+          <div className="space-y-6">
+            {realmGroups.map(({ realm, disciplines: realmDisciplines }) => {
+              const RealmIcon = getIcon(realm.icon);
+              return (
+                <div key={realm.slug}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <RealmIcon className="w-4 h-4" style={{ color: realm.color }} />
+                    <h3
+                      className="font-display text-sm tracking-widest uppercase"
+                      style={{ color: realm.color }}
+                    >
+                      {realm.name}
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {realmDisciplines.map((discipline) => (
+                      <SkillCard
+                        key={discipline.id}
+                        skill={discipline}
+                        href={`/skills/${discipline.id}`}
+                        subSkillCount={discipline.children.length}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

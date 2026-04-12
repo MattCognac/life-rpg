@@ -30,7 +30,7 @@ export default async function AchievementsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div>
         <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold w-fit">
           Achievements

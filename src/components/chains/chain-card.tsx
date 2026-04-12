@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { getChainTier } from "@/lib/realms";
 import { Link2, Check } from "lucide-react";
 
 interface Props {
@@ -6,6 +8,7 @@ interface Props {
     id: string;
     name: string;
     description: string;
+    tier?: string;
     quests: Array<{ status: string }>;
   };
 }
@@ -37,8 +40,22 @@ export function ChainCard({ chain }: Props) {
           </div>
         </div>
 
-        <div className="font-display text-base tracking-wider uppercase text-foreground mb-1">
-          {chain.name}
+        <div className="flex items-center gap-2 mb-1">
+          <div className="font-display text-base tracking-wider uppercase text-foreground">
+            {chain.name}
+          </div>
+          {chain.tier && chain.tier !== "common" && (() => {
+            const tier = getChainTier(chain.tier);
+            return tier ? (
+              <Badge
+                variant="outline"
+                className="text-[8px] px-1.5 py-0"
+                style={{ borderColor: tier.color, color: tier.color }}
+              >
+                {tier.name}
+              </Badge>
+            ) : null;
+          })()}
         </div>
         {chain.description && (
           <p className="text-xs text-muted-foreground font-body line-clamp-2 mb-3">

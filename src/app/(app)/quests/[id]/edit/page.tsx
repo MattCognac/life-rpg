@@ -15,7 +15,11 @@ export default async function EditQuestPage({
   const userId = await getAuthUser();
   const [quest, skills] = await Promise.all([
     db.quest.findFirst({ where: { id, userId } }),
-    db.skill.findMany({ where: { userId }, orderBy: { name: "asc" } }),
+    db.skill.findMany({
+      where: { userId, parentId: null },
+      include: { children: { orderBy: { name: "asc" } } },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   if (!quest) notFound();
