@@ -6,13 +6,19 @@ import { StreakDisplay } from "@/components/daily/streak-display";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Sun, Plus, Flame } from "lucide-react";
-import { isCompletedToday, isDailyActiveToday, isStreakBroken } from "@/lib/daily";
+import { isCompletedToday, isDailyActiveToday, isStreakBroken, scheduleLabel } from "@/lib/daily";
 import { startOfToday } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function DailyPage() {
+export default async function DailyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
   const userId = await getAuthUser();
+  const { view } = await searchParams;
+  const filter = view ?? "today";
 
   const allStreaks = await db.dailyStreak.findMany({ where: { userId } });
   for (const s of allStreaks) {
@@ -40,6 +46,7 @@ export default async function DailyPage() {
   const streakByQuest = new Map(streaks.map((s) => [s.questId, s]));
 
   const activeToday = dailyQuests.filter((q) => isDailyActiveToday(q.dailyCron));
+  const inactiveToday = dailyQuests.filter((q) => !isDailyActiveToday(q.dailyCron));
 
   const bestStreak = streaks.reduce(
     (max, s) => Math.max(max, s.currentStreak),
@@ -47,11 +54,34 @@ export default async function DailyPage() {
   );
   const totalCompletedToday = activeToday.filter((q) => q.completions.length > 0).length;
 
+  const tabs = [
+    { key: "today", label: "Today", count: activeToday.length },
+    { key: "scheduled", label: "Not Scheduled", count: inactiveToday.length },
+    { key: "all", label: "All", count: dailyQuests.length },
+  ];
+
+  let visibleQuests: typeof dailyQuests;
+  let showInactive: boolean;
+  switch (filter) {
+    case "scheduled":
+      visibleQuests = inactiveToday;
+      showInactive = true;
+      break;
+    case "all":
+      visibleQuests = dailyQuests;
+      showInactive = false;
+      break;
+    default:
+      visibleQuests = activeToday;
+      showInactive = false;
+      break;
+  }
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold">
+          <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold w-fit">
             Daily Quests
           </h1>
           <p className="text-sm text-muted-foreground mt-1 font-body">
@@ -95,11 +125,32 @@ export default async function DailyPage() {
         </div>
       )}
 
-      {activeToday.length === 0 ? (
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
+        {tabs.map((tab) => (
+          <Link
+            key={tab.key}
+            href={`/daily?view=${tab.key}`}
+            className={`px-4 py-2 font-display text-xs uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap ${
+              filter === tab.key
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab.label}
+            <span className="ml-1.5 text-[10px] opacity-60">({tab.count})</span>
+          </Link>
+        ))}
+      </div>
+
+      {visibleQuests.length === 0 ? (
         <EmptyState
           Icon={Sun}
-          title="No Daily Quests"
-          description="Daily quests reset each day and build streaks. Create one by making a new quest and toggling the daily option."
+          title={filter === "today" ? "Nothing Due Today" : "No Daily Quests"}
+          description={
+            filter === "today" && inactiveToday.length > 0
+              ? "No dailies are scheduled for today. Check the Not Scheduled tab to see your other dailies."
+              : "Daily quests reset each day and build streaks. Create one by making a new quest and toggling the daily option."
+          }
           action={
             <Link href="/quests/new">
               <Button variant="ghost">
@@ -111,14 +162,19 @@ export default async function DailyPage() {
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {activeToday.map((quest) => (
-            <DailyQuestCard
-              key={quest.id}
-              quest={quest}
-              streak={streakByQuest.get(quest.id) ?? null}
-              completedToday={isCompletedToday(quest.completions[0]?.completedAt ?? null)}
-            />
-          ))}
+          {visibleQuests.map((quest) => {
+            const isInactive = !isDailyActiveToday(quest.dailyCron);
+            return (
+              <DailyQuestCard
+                key={quest.id}
+                quest={quest}
+                streak={streakByQuest.get(quest.id) ?? null}
+                completedToday={isCompletedToday(quest.completions[0]?.completedAt ?? null)}
+                inactive={showInactive || (filter === "all" && isInactive)}
+                scheduleName={isInactive ? scheduleLabel(quest.dailyCron) : undefined}
+              />
+            );
+          })}
         </div>
       )}
     </div>

@@ -13,7 +13,7 @@ export function XpBar({ current, max, showLabel = true, color, className }: Prop
   const pct = Math.min(100, (current / max) * 100);
   return (
     <div className={cn("w-full", className)}>
-      <div className="xp-bar">
+      <div className="xp-bar relative">
         <div
           className="xp-bar-fill"
           style={{
@@ -24,13 +24,12 @@ export function XpBar({ current, max, showLabel = true, color, className }: Prop
             }),
           }}
         />
+        {showLabel && (
+          <span className="absolute inset-0 flex items-center px-1.5 text-[9px] font-body tracking-wider text-foreground/70">
+            {formatNumber(current)} / {formatNumber(max)} XP
+          </span>
+        )}
       </div>
-      {showLabel && (
-        <div className="text-[10px] font-body tracking-wider text-muted-foreground mt-1 flex justify-between">
-          <span>{formatNumber(current)} XP</span>
-          <span>{formatNumber(max)}</span>
-        </div>
-      )}
     </div>
   );
 }

@@ -38,8 +38,8 @@ export default async function QuestDetailPage({
   const isCompleted = quest.status === "completed";
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <BackButton label="Quests" fallbackHref="/quest-log" />
+    <div className="max-w-6xl mx-auto space-y-6">
+      <BackButton label="Quests" fallbackHref="/quests" />
 
       <div className="norse-card p-6">
         <div className="flex flex-wrap items-center gap-2 mb-3">

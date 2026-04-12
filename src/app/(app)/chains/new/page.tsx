@@ -29,11 +29,11 @@ export default function NewChainPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <BackButton label="Back" fallbackHref="/chains" />
 
       <div>
-        <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold">
+        <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold w-fit">
           New Chain
         </h1>
         <p className="text-sm text-muted-foreground mt-1 font-body">

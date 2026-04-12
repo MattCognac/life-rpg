@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -12,7 +12,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { DifficultyStars } from "@/components/quests/difficulty-stars";
@@ -24,16 +23,50 @@ import { Sparkles, Wand2, Zap, RotateCw, Check, PenLine } from "lucide-react";
 import { XP_BY_DIFFICULTY } from "@/lib/xp";
 
 const EXAMPLES = [
-  "Learn to hunt",
-  "Run a marathon",
-  "Build a web app",
-  "Learn to play guitar",
-  "Write a novel",
+  {
+    label: "Master the bow",
+    prompt:
+      "I want to get into bow hunting. I've never done it before and don't own any gear yet.",
+  },
+  {
+    label: "Run a marathon",
+    prompt:
+      "I want to run a marathon. I'm pretty out of shape and can't run more than a mile.",
+  },
+  {
+    label: "Build a web app",
+    prompt:
+      "I want to build a web app and actually get people using it. I know some coding basics.",
+  },
+  {
+    label: "Learn guitar",
+    prompt:
+      "I want to learn guitar. I've never played an instrument but I want to be able to play songs.",
+  },
+  {
+    label: "Write a novel",
+    prompt:
+      "I want to write a novel. I have some ideas but I've never written anything long before.",
+  },
 ];
+
+type OpenListener = () => void;
+const openListeners = new Set<OpenListener>();
+
+export function openAIChainGenerator() {
+  openListeners.forEach((l) => l());
+}
 
 export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const listener: OpenListener = () => setOpen(true);
+    openListeners.add(listener);
+    return () => { openListeners.delete(listener); };
+  }, []);
+
   const [goal, setGoal] = useState("");
   const [isGenerating, startGenerating] = useTransition();
   const [isSaving, startSaving] = useTransition();
@@ -133,18 +166,14 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
           <div className="space-y-4">
             <div>
               <Label htmlFor="goal">Your Goal</Label>
-              <Input
+              <Textarea
                 id="goal"
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
-                placeholder="e.g. Learn to hunt"
+                placeholder="Describe your goal — where you're starting and where you want to end up"
                 className="mt-1.5"
                 disabled={isGenerating}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !isGenerating && goal.trim()) {
-                    handleGenerate();
-                  }
-                }}
+                rows={3}
                 autoFocus
               />
             </div>
@@ -156,13 +185,13 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
               <div className="flex flex-wrap gap-2">
                 {EXAMPLES.map((ex) => (
                   <button
-                    key={ex}
+                    key={ex.label}
                     type="button"
                     disabled={isGenerating}
-                    onClick={() => setGoal(ex)}
+                    onClick={() => setGoal(ex.prompt)}
                     className="px-3 py-1 text-xs font-body border border-border bg-card hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
                   >
-                    {ex}
+                    {ex.label}
                   </button>
                 ))}
               </div>

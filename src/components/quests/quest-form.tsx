@@ -17,8 +17,10 @@ import { DIFFICULTY_LABELS, DIFFICULTY_COLORS } from "@/lib/constants";
 import { XP_BY_DIFFICULTY } from "@/lib/xp";
 import { createQuest, updateQuest } from "@/actions/quest-actions";
 import { handleActionResult } from "@/components/shared/action-handler";
+import { toast } from "@/components/shared/toaster";
+import { isDailyActiveToday, nextActiveLabel, scheduleLabel } from "@/lib/daily";
 import { cn } from "@/lib/utils";
-import { Swords, Zap } from "lucide-react";
+import { Check, Swords, Zap } from "lucide-react";
 
 interface Skill {
   id: string;
@@ -93,6 +95,13 @@ export function QuestForm({
         : await createQuest(input);
       handleActionResult(result);
       if (result.success) {
+        if (!quest && isDaily && !isDailyActiveToday(dailyCron)) {
+          toast({
+            type: "default",
+            title: "Daily Created",
+            description: `${scheduleLabel(dailyCron)} — it'll appear on ${nextActiveLabel(dailyCron)}.`,
+          });
+        }
         router.refresh();
         if (onDone) onDone();
         else if (!quest) router.back();
@@ -203,21 +212,44 @@ export function QuestForm({
       )}
 
       {!quest && (
-        <div className="flex items-start gap-3 p-3 border border-border bg-card/50">
-          <input
-            type="checkbox"
-            id="daily"
-            checked={isDaily}
-            onChange={(e) => setIsDaily(e.target.checked)}
-            className="mt-1 accent-primary"
-          />
+        <div
+          className={cn(
+            "flex items-start gap-3 p-3 border bg-card/50 cursor-pointer transition-all duration-300",
+            isDaily
+              ? "border-primary/60 bg-primary/5"
+              : "border-border hover:border-primary/30"
+          )}
+          onClick={() => setIsDaily(!isDaily)}
+        >
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={isDaily}
+            className={cn(
+              "mt-0.5 flex-shrink-0 w-5 h-5 border transition-all duration-200 flex items-center justify-center",
+              isDaily
+                ? "border-primary bg-primary/20 shadow-[0_0_8px_hsl(var(--primary)/0.4)]"
+                : "border-border bg-card hover:border-primary/50"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsDaily(!isDaily);
+            }}
+          >
+            <Check
+              className={cn(
+                "w-3.5 h-3.5 text-primary transition-all duration-200",
+                isDaily ? "opacity-100 scale-100" : "opacity-0 scale-75"
+              )}
+              strokeWidth={3}
+            />
+          </button>
           <div className="flex-1">
-            <label
-              htmlFor="daily"
-              className="font-display text-xs tracking-widest uppercase text-foreground cursor-pointer"
+            <span
+              className="font-display text-xs tracking-widest uppercase text-foreground cursor-pointer select-none"
             >
               Daily Quest
-            </label>
+            </span>
             <p className="text-xs text-muted-foreground mt-0.5">
               Completable once per day, builds a streak.
             </p>

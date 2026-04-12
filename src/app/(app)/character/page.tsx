@@ -8,9 +8,8 @@ import { XpBar } from "@/components/shared/xp-bar";
 import { LevelBadge } from "@/components/shared/level-badge";
 import { SkillCard } from "@/components/skills/skill-card";
 import { SkillForm } from "@/components/skills/skill-form";
-import { RenameCharacter } from "@/components/character/rename-character";
-import { ChangeClass } from "@/components/character/change-class";
-import { Zap, Swords, Flame, Trophy } from "lucide-react";
+import { EditCharacter } from "@/components/character/edit-character";
+import { Zap, Swords, Flame, Trophy, Calendar } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -61,56 +60,59 @@ export default async function CharacterPage() {
               "radial-gradient(circle at 20% 50%, hsl(var(--primary) / 0.4), transparent 60%)",
           }}
         />
+
+        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border bg-card/60 text-muted-foreground"
+            title={`${daysActive} day${daysActive === 1 ? "" : "s"} adventuring`}
+          >
+            <Calendar className="w-3.5 h-3.5 text-primary" />
+            <span className="text-[10px] font-display uppercase tracking-widest">
+              {daysActive}d
+            </span>
+          </div>
+          <EditCharacter
+            currentName={character.name}
+            currentClass={character.class as CharacterClass}
+          />
+        </div>
+
         <div className="relative flex flex-col md:flex-row items-center md:items-start gap-8">
-          <LevelBadge level={level} size="xl" />
+          <LevelBadge
+            level={level}
+            size="xl"
+            icon={
+              <ClassIcon
+                characterClass={character.class as CharacterClass}
+                className="w-full h-full"
+              />
+            }
+          />
 
           <div className="flex-1 text-center md:text-left w-full">
-            <div className="flex items-center gap-2 justify-center md:justify-start">
-              {classDef && (
-                <ClassIcon
-                  characterClass={character.class as CharacterClass}
-                  className="w-4 h-4 text-primary"
-                />
-              )}
-              <div className="text-[10px] font-display uppercase tracking-[0.3em] text-muted-foreground">
-                {classDef?.name ?? "Adventurer"} • {title}
-              </div>
+            <div className="text-[10px] font-display uppercase tracking-[0.3em] text-muted-foreground">
+              {classDef?.name ?? "Adventurer"} &bull; {title}
             </div>
-            <div className="flex items-center gap-3 justify-center md:justify-start mt-1">
-              <h1 className="font-display text-4xl tracking-wider uppercase text-gradient-gold">
-                {character.name}
-              </h1>
-              <RenameCharacter current={character.name} />
-            </div>
-            {classDef && (
-              <div className="text-xs font-body text-muted-foreground italic mt-1">
-                &ldquo;{classDef.flavor}&rdquo;
-              </div>
-            )}
-            <div className="flex items-center gap-4 mt-2">
-              <div className="text-xs font-body text-muted-foreground">
-                {daysActive} days adventuring
-              </div>
-              <ChangeClass currentClass={character.class as CharacterClass} />
-            </div>
+            <h1 className="font-display text-4xl tracking-wider uppercase text-gradient-gold mt-1 w-fit mx-auto md:mx-0">
+              {character.name}
+            </h1>
 
-            <div className="mt-6 max-w-md mx-auto md:mx-0">
+            <div className="mt-3 max-w-md mx-auto md:mx-0">
               <XpBar current={currentLevelXp} max={xpForNextLevel} />
+            </div>
+            <div className="flex items-center gap-4 md:gap-6 mt-3 justify-center md:justify-start flex-wrap">
+              {stats.map(({ label, value, Icon }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <Icon className="w-3.5 h-3.5 text-primary" />
+                  <span className="font-display text-sm text-gold">{value}</span>
+                  <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">
+                    {label}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map(({ label, value, Icon }) => (
-          <div key={label} className="norse-card p-5 stat-glow">
-            <Icon className="w-5 h-5 text-primary mb-2" />
-            <div className="font-display text-2xl text-gold">{value}</div>
-            <div className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mt-1">
-              {label}
-            </div>
-          </div>
-        ))}
       </div>
 
       <div>

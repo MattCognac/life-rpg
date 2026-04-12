@@ -30,3 +30,20 @@ export function isDailyActiveToday(dailyCron: string | null | undefined): boolea
   if (dailyCron === "weekends") return day === 0 || day === 6;
   return true;
 }
+
+export function scheduleLabel(dailyCron: string | null | undefined): string {
+  if (!dailyCron || dailyCron === "daily") return "Every day";
+  if (dailyCron === "weekdays") return "Weekdays only";
+  if (dailyCron === "weekends") return "Weekends only";
+  return "Every day";
+}
+
+/**
+ * Human-readable label for when a non-active schedule will next trigger.
+ * Only meaningful when isDailyActiveToday returns false.
+ */
+export function nextActiveLabel(dailyCron: string | null | undefined): string {
+  if (dailyCron === "weekdays") return "Monday";
+  if (dailyCron === "weekends") return "Saturday";
+  return "tomorrow";
+}

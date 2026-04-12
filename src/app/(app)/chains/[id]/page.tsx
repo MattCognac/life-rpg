@@ -33,7 +33,7 @@ export default async function ChainDetailPage({
   const isComplete = total > 0 && completed === total;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <BackButton label="Back" fallbackHref="/chains" />
 
       <div className="norse-card p-6">
@@ -47,7 +47,7 @@ export default async function ChainDetailPage({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-3 flex-wrap">
-              <h1 className="font-display text-2xl md:text-3xl tracking-wider uppercase text-gradient-gold">
+              <h1 className="font-display text-2xl md:text-3xl tracking-wider uppercase text-gradient-gold w-fit">
                 {chain.name}
               </h1>
               <ChainMenu

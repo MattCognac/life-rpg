@@ -21,7 +21,7 @@ export default async function ChainsPage() {
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold">
+          <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold w-fit">
             Quest Chains
           </h1>
           <p className="text-sm text-muted-foreground mt-1 font-body">
@@ -29,13 +29,13 @@ export default async function ChainsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <AIChainGenerator />
           <Link href="/chains/new">
             <Button variant="ghost">
               <Plus className="w-4 h-4" />
               New Chain
             </Button>
           </Link>
+          <AIChainGenerator />
         </div>
       </div>
 
@@ -46,13 +46,13 @@ export default async function ChainsPage() {
           description="Chains are sequences of quests where completing one unlocks the next. Forge a quest chain from a big goal, or build one from scratch."
           action={
             <div className="flex items-center gap-2">
-              <AIChainGenerator />
               <Link href="/chains/new">
                 <Button variant="ghost">
                   <Plus className="w-4 h-4" />
-                  From Scratch
+                  New Chain
                 </Button>
               </Link>
+              <AIChainGenerator />
             </div>
           }
         />

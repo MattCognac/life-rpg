@@ -9,15 +9,16 @@ datasource db {
 }
 
 model Character {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  name      String   @default("Adventurer")
-  title     String   @default("Novice")
-  class     String   @default("warrior")
-  totalXp   Int      @default(0)
-  level     Int      @default(1)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  name                 String   @default("Adventurer")
+  title                String   @default("Novice")
+  class                String   @default("warrior")
+  totalXp              Int      @default(0)
+  level                Int      @default(1)
+  hasCompletedTutorial Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
 
 model Skill {

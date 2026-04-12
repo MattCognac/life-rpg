@@ -20,7 +20,7 @@ export default async function SkillsPage() {
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold">
+          <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold w-fit">
             Skills
           </h1>
           <p className="text-sm text-muted-foreground mt-1 font-body">

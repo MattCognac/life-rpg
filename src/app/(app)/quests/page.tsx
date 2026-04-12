@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { getAuthUser } from "@/lib/auth";
 import { QuestCard } from "@/components/quests/quest-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -12,11 +13,13 @@ export default async function QuestsPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
+  const userId = await getAuthUser();
   const { status } = await searchParams;
   const filter = status ?? "active";
 
   const quests = await db.quest.findMany({
     where: {
+      userId,
       isDaily: false,
       ...(filter === "all" ? {} : { status: filter }),
     },
@@ -27,7 +30,7 @@ export default async function QuestsPage({
   const counts = await db.quest.groupBy({
     by: ["status"],
     _count: true,
-    where: { isDaily: false },
+    where: { userId, isDaily: false },
   });
   const countMap = Object.fromEntries(counts.map((c) => [c.status, c._count]));
 
@@ -42,7 +45,7 @@ export default async function QuestsPage({
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold">
+          <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold w-fit">
             Quest Board
           </h1>
           <p className="text-sm text-muted-foreground mt-1 font-body">

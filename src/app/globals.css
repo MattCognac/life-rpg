@@ -222,7 +222,7 @@
 
   /* XP progress bar with ember glow */
   .xp-bar {
-    @apply relative h-3 w-full overflow-hidden bg-secondary border border-border;
+    @apply relative h-5 w-full overflow-hidden bg-secondary border border-border;
   }
   .xp-bar-fill {
     @apply h-full relative;
@@ -249,23 +249,6 @@
     animation: shimmer 3s linear infinite;
   }
 
-  /* Text gradient for headings */
-  .text-gradient-gold {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--gold)) 0%,
-      hsl(var(--primary)) 50%,
-      hsl(var(--primary-dark)) 100%
-    );
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .text-gold {
-    color: hsl(var(--gold));
-  }
-
   /* Hover glow for stat tiles */
   .stat-glow {
     position: relative;
@@ -283,13 +266,20 @@
     box-shadow: 0 0 30px 4px hsl(var(--primary) / 0.2);
   }
 
-  /* Level badge concentric rings */
-  .level-badge-ring {
-    @apply relative inline-flex items-center justify-center;
-    background: radial-gradient(
-      circle,
-      hsl(var(--primary) / 0.2) 0%,
-      transparent 70%
-    );
-  }
+}
+
+.text-gradient-gold {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--gold)) 0%,
+    hsl(var(--primary)) 50%,
+    hsl(var(--primary-dark)) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gold {
+  color: hsl(var(--gold));
 }

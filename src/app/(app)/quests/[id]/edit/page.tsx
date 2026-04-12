@@ -21,11 +21,11 @@ export default async function EditQuestPage({
   if (!quest) notFound();
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <BackButton label="Back" fallbackHref={`/quests/${id}`} />
 
       <div>
-        <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold">
+        <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold w-fit">
           Edit Quest
         </h1>
         <p className="text-sm text-muted-foreground mt-1 font-body">

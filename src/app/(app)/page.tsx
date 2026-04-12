@@ -2,14 +2,20 @@ import { db } from "@/lib/db";
 import { getCharacterForUser } from "@/lib/character";
 import { getAuthUser } from "@/lib/auth";
 import { computeLevel, titleForLevel } from "@/lib/xp";
+import { CHARACTER_CLASSES, type CharacterClass } from "@/lib/classes";
+import { ClassIcon } from "@/components/shared/class-icon";
 import { XpChart } from "@/components/dashboard/xp-chart";
 import { SkillRadar } from "@/components/dashboard/skill-radar";
+import { ActiveQuests } from "@/components/dashboard/active-quests";
+import { DailiesBlock } from "@/components/dashboard/dailies-block";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
-import { QuestTabs } from "@/components/dashboard/quest-tabs";
+import { AchievementCard } from "@/components/achievements/achievement-card";
 import { LevelBadge } from "@/components/shared/level-badge";
 import { XpBar } from "@/components/shared/xp-bar";
+import { EditCharacter } from "@/components/character/edit-character";
 import { Zap, Swords, Flame, Trophy } from "lucide-react";
 import { formatNumber, startOfToday } from "@/lib/utils";
+import Link from "next/link";
 import { isDailyActiveToday, isCompletedToday } from "@/lib/daily";
 
 export const dynamic = "force-dynamic";
@@ -50,26 +56,32 @@ export default async function DashboardPage() {
 
   const { level, currentLevelXp, xpForNextLevel } = computeLevel(character.totalXp);
   const title = titleForLevel(level);
+  const classDef = CHARACTER_CLASSES[character.class as CharacterClass];
 
   const [
     xpHistory,
     skills,
     activeQuests,
     dailyQuests,
-    activeChains,
     dailyStreaks,
     completionCount,
     longestStreakRow,
     achievementsUnlocked,
-    recentActivity,
+    activityEntries,
+    recentAchievements,
   ] = await Promise.all([
     getXpHistory(userId),
     db.skill.findMany({ where: { userId }, orderBy: { totalXp: "desc" }, take: 8 }),
     db.quest.findMany({
       where: { userId, status: "active", isDaily: false },
-      include: { skill: true },
+      include: {
+        skill: true,
+        chain: {
+          include: { quests: { select: { status: true } } },
+        },
+      },
       orderBy: { createdAt: "desc" },
-      take: 3,
+      take: 5,
     }),
     db.quest.findMany({
       where: { userId, isDaily: true },
@@ -82,12 +94,6 @@ export default async function DashboardPage() {
       },
       orderBy: { createdAt: "asc" },
     }),
-    db.questChain.findMany({
-      where: { userId },
-      include: { quests: { select: { status: true } } },
-      orderBy: { updatedAt: "desc" },
-      take: 3,
-    }),
     db.dailyStreak.findMany({ where: { userId } }),
     db.questCompletion.count({ where: { userId } }),
     db.dailyStreak.findFirst({ where: { userId }, orderBy: { currentStreak: "desc" } }),
@@ -97,34 +103,29 @@ export default async function DashboardPage() {
       orderBy: { createdAt: "desc" },
       take: 8,
     }),
+    db.achievement.findMany({
+      where: { userId, unlockedAt: { not: null } },
+      orderBy: { unlockedAt: "desc" },
+      take: 4,
+    }),
   ]);
 
   const activeDailies = dailyQuests.filter((q) => isDailyActiveToday(q.dailyCron));
   const streakByQuest = new Map(dailyStreaks.map((s) => [s.questId, s]));
-  const incompleteChains = activeChains.filter(
-    (c) => c.quests.length === 0 || c.quests.some((q) => q.status !== "completed")
-  );
 
   const radarData = skills.map((s) => ({ skill: s.name, level: s.level }));
 
   const stats = [
-    { label: "Total XP", value: formatNumber(character.totalXp), Icon: Zap },
-    { label: "Quests Done", value: formatNumber(completionCount), Icon: Swords },
-    {
-      label: "Streak",
-      value: formatNumber(longestStreakRow?.currentStreak ?? 0),
-      Icon: Flame,
-    },
-    {
-      label: "Achievements",
-      value: formatNumber(achievementsUnlocked),
-      Icon: Trophy,
-    },
+    { label: "XP", value: formatNumber(character.totalXp), Icon: Zap },
+    { label: "Quests", value: formatNumber(completionCount), Icon: Swords },
+    { label: "Streak", value: formatNumber(longestStreakRow?.currentStreak ?? 0), Icon: Flame },
+    { label: "Trophies", value: formatNumber(achievementsUnlocked), Icon: Trophy },
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="norse-card p-6 relative overflow-hidden">
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Hero card with inline stats */}
+      <div data-tutorial="hero" className="norse-card p-6 relative overflow-hidden">
         <div
           className="absolute inset-0 opacity-20 pointer-events-none"
           style={{
@@ -132,48 +133,83 @@ export default async function DashboardPage() {
               "radial-gradient(circle at 80% 50%, hsl(var(--primary) / 0.3), transparent 60%)",
           }}
         />
+
+        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border bg-card/60 text-muted-foreground"
+            title={`${longestStreakRow?.currentStreak ?? 0} day streak`}
+          >
+            <Flame className="w-3.5 h-3.5 text-primary" />
+            <span className="text-[10px] font-display uppercase tracking-widest">
+              {longestStreakRow?.currentStreak ?? 0}d
+            </span>
+          </div>
+          <EditCharacter
+            currentName={character.name}
+            currentClass={character.class as CharacterClass}
+          />
+        </div>
+
         <div className="relative flex flex-col md:flex-row items-center md:items-center gap-6">
-          <LevelBadge level={level} size="lg" />
+          <LevelBadge
+            level={level}
+            size="lg"
+            icon={
+              <ClassIcon
+                characterClass={character.class as CharacterClass}
+                className="w-full h-full"
+              />
+            }
+          />
           <div className="flex-1 text-center md:text-left w-full">
             <div className="text-[10px] font-display uppercase tracking-[0.3em] text-muted-foreground">
-              {title}
+              {classDef?.name ?? "Adventurer"} &bull; {title}
             </div>
-            <h1 className="font-display text-2xl md:text-3xl tracking-wider uppercase text-gradient-gold mt-0.5">
+            <h1 className="font-display text-2xl md:text-3xl tracking-wider uppercase text-gradient-gold mt-0.5 w-fit mx-auto md:mx-0">
               {character.name}
             </h1>
             <div className="mt-3 max-w-md mx-auto md:mx-0">
               <XpBar current={currentLevelXp} max={xpForNextLevel} />
             </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map(({ label, value, Icon }) => (
-          <div key={label} className="norse-card p-4 stat-glow">
-            <Icon className="w-5 h-5 text-primary mb-2" />
-            <div className="font-display text-2xl text-gold">{value}</div>
-            <div className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mt-1">
-              {label}
+            <div data-tutorial="stats" className="flex items-center gap-4 md:gap-6 mt-3 justify-center md:justify-start flex-wrap">
+              {stats.map(({ label, value, Icon }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <Icon className="w-3.5 h-3.5 text-primary" />
+                  <span className="font-display text-sm text-gold">{value}</span>
+                  <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">
+                    {label}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
-        ))}
+        </div>
       </div>
 
+      {/* Active Quests + Dailies */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 flex">
-          <QuestTabs
-            dailies={activeDailies.slice(0, 4).map((q) => ({
-              quest: q,
-              streak: streakByQuest.get(q.id) ?? null,
-              completedToday: isCompletedToday(q.completions[0]?.completedAt ?? null),
-            }))}
-            chains={incompleteChains.slice(0, 4)}
-            quests={activeQuests}
-          />
+        <div data-tutorial="quests" className="lg:col-span-2 flex">
+          <ActiveQuests quests={activeQuests} />
         </div>
+        <DailiesBlock
+          dailies={activeDailies.slice(0, 6).map((q) => ({
+            quest: q,
+            streak: streakByQuest.get(q.id) ?? null,
+            completedToday: isCompletedToday(q.completions[0]?.completedAt ?? null),
+          }))}
+          totalActive={activeDailies.length}
+        />
+      </div>
 
-        <div className="norse-card p-5 h-fit">
+      {/* XP Chart + Skills */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="norse-card p-5 lg:col-span-2">
+          <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground mb-4">
+            XP Earned — Last 30 Days
+          </h2>
+          <XpChart data={xpHistory} />
+        </div>
+        <div data-tutorial="skills" className="norse-card p-5 h-fit">
           <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground mb-4">
             Skill Mastery
           </h2>
@@ -187,18 +223,40 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* Recent Achievements + Activity Log */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="norse-card p-5 lg:col-span-2">
-          <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground mb-4">
-            XP Earned — Last 30 Days
-          </h2>
-          <XpChart data={xpHistory} />
+          <div className="flex items-baseline justify-between mb-4">
+            <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground">
+              Recent Achievements
+            </h2>
+            <Link
+              href="/achievements"
+              className="text-[10px] font-display uppercase tracking-widest text-primary hover:text-primary/80 transition-colors"
+            >
+              View all
+            </Link>
+          </div>
+          {recentAchievements.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Trophy className="w-8 h-8 text-muted-foreground mb-2" />
+              <p className="text-xs text-muted-foreground">
+                Complete quests to unlock achievements.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentAchievements.map((a) => (
+                <AchievementCard key={a.id} achievement={a} />
+              ))}
+            </div>
+          )}
         </div>
-        <div className="norse-card p-5 h-fit">
+        <div className="norse-card p-5">
           <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground mb-4">
-            Recent Activity
+            Activity Log
           </h2>
-          <RecentActivity entries={recentActivity} />
+          <RecentActivity entries={activityEntries} />
         </div>
       </div>
     </div>

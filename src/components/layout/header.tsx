@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { computeLevel, titleForLevel } from "@/lib/xp";
 import { getAuthUser } from "@/lib/auth";
 import { ClassIcon } from "@/components/shared/class-icon";
+import { LevelBadge } from "@/components/shared/level-badge";
 import { CHARACTER_CLASSES, type CharacterClass } from "@/lib/classes";
 import { formatNumber } from "@/lib/utils";
 
@@ -32,29 +33,28 @@ export async function Header() {
           </div>
         </div>
 
-        <div className="relative">
-          <div className="w-12 h-12 level-badge-ring flex items-center justify-center border-2 border-primary/60 bg-card">
-            {classDef ? (
+        <LevelBadge
+          level={level}
+          size="md"
+          icon={
+            classDef ? (
               <ClassIcon
                 characterClass={character.class as CharacterClass}
-                className="absolute inset-0 w-full h-full p-2.5 text-primary/20"
+                className="w-full h-full"
               />
-            ) : null}
-            <div className="relative font-display font-bold text-lg text-gold">
-              {level}
-            </div>
-          </div>
-        </div>
+            ) : undefined
+          }
+        />
 
-        <div className="hidden sm:block min-w-[140px]">
-          <div className="xp-bar">
+        <div className="hidden sm:flex items-center min-w-[140px]">
+          <div className="xp-bar w-full">
             <div
               className="xp-bar-fill"
               style={{ width: `${(currentLevelXp / xpForNextLevel) * 100}%` }}
             />
-          </div>
-          <div className="text-[10px] font-body tracking-wider text-muted-foreground mt-1 text-right">
-            {formatNumber(currentLevelXp)} / {formatNumber(xpForNextLevel)} XP
+            <span className="absolute inset-0 flex items-center px-1.5 text-[9px] font-body tracking-wider text-foreground/70">
+              {formatNumber(currentLevelXp)} / {formatNumber(xpForNextLevel)} XP
+            </span>
           </div>
         </div>
       </div>

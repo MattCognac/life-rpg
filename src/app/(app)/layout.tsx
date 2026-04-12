@@ -4,6 +4,7 @@ import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { LevelUpModal } from "@/components/shared/level-up-modal";
 import { QuestCompleteFlash } from "@/components/shared/quest-complete-flash";
+import { TutorialOverlay } from "@/components/onboarding/tutorial-overlay";
 import { getAuthUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -29,6 +30,10 @@ export default async function AppLayout({
       <MobileNav />
       <LevelUpModal />
       <QuestCompleteFlash />
+      <TutorialOverlay
+        characterName={character.name}
+        open={!character.hasCompletedTutorial}
+      />
     </div>
   );
 }

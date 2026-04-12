@@ -71,7 +71,7 @@ function EmptyCta() {
           </Button>
         </Link>
         <AIChainGenerator>
-          <Button>
+          <Button data-tutorial="forge-ai">
             <Sparkles className="w-4 h-4" />
             Forge with Odin AI
           </Button>
@@ -88,6 +88,11 @@ export function QuestTabs({ dailies, chains, quests }: Props) {
     active === "daily" ? "/daily" :
     active === "chains" ? "/chains" :
     "/quests";
+
+  const currentTabEmpty =
+    (active === "quests" && quests.length === 0) ||
+    (active === "chains" && chains.length === 0) ||
+    (active === "daily" && dailies.length === 0);
 
   return (
     <div className="norse-card p-5 w-full flex flex-col">
@@ -109,20 +114,22 @@ export function QuestTabs({ dailies, chains, quests }: Props) {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/quests/new">
-            <Button variant="ghost" size="sm">
-              <Plus className="w-4 h-4" />
-              New Quest
-            </Button>
-          </Link>
-          <AIChainGenerator>
-            <Button size="sm">
-              <Sparkles className="w-4 h-4" />
-              Forge with Odin AI
-            </Button>
-          </AIChainGenerator>
-        </div>
+        {!currentTabEmpty && (
+          <div className="flex items-center gap-2">
+            <Link href="/quests/new">
+              <Button variant="ghost" size="sm">
+                <Plus className="w-4 h-4" />
+                New Quest
+              </Button>
+            </Link>
+            <AIChainGenerator>
+              <Button size="sm" data-tutorial="forge-ai">
+                <Sparkles className="w-4 h-4" />
+                Forge with Odin AI
+              </Button>
+            </AIChainGenerator>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 pt-5">

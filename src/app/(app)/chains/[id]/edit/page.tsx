@@ -33,12 +33,12 @@ export default async function EditChainPage({
   }));
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <BackButton label="Back" fallbackHref={`/chains/${id}`} />
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold">
+          <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold w-fit">
             Edit Chain
           </h1>
           <p className="text-sm text-muted-foreground mt-1 font-body">

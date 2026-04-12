@@ -20,6 +20,7 @@ const config: Config = {
         display: ["var(--font-cinzel-decorative)", "serif"],
         heading: ["var(--font-cinzel)", "serif"],
         body: ["var(--font-inter)", "sans-serif"],
+        norse: ["var(--font-norse)", "serif"],
       },
       colors: {
         background: "hsl(var(--background))",
@@ -109,6 +110,16 @@ const config: Config = {
           "20%": { opacity: "1", transform: "scale(1)" },
           "100%": { opacity: "0", transform: "scale(1.2)" },
         },
+        "rune-spotlight": {
+          "0%, 100%": {
+            boxShadow:
+              "0 0 0 9999px rgba(0,0,0,0.75), 0 0 20px hsl(var(--gold) / 0.5), inset 0 0 15px hsl(var(--gold) / 0.15)",
+          },
+          "50%": {
+            boxShadow:
+              "0 0 0 9999px rgba(0,0,0,0.75), 0 0 40px hsl(var(--gold) / 0.8), inset 0 0 25px hsl(var(--gold) / 0.25)",
+          },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.3s ease-out",
@@ -120,6 +131,7 @@ const config: Config = {
         "slide-in-right": "slide-in-right 0.4s ease-out",
         "shimmer": "shimmer 3s linear infinite",
         "quest-flash": "quest-flash 1.4s ease-out forwards",
+        "rune-spotlight": "rune-spotlight 2s ease-in-out infinite",
       },
     },
   },

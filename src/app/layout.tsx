@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Cinzel, Cinzel_Decorative, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "@/components/shared/toaster";
 
@@ -20,6 +21,13 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+const norse = localFont({
+  src: "../../public/fonts/Norse-Bold.otf",
+  variable: "--font-norse",
+  weight: "700",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Life RPG — Your Quest Begins",
   description:
@@ -35,7 +43,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${cinzel.variable} ${cinzelDecorative.variable} ${inter.variable}`}
+        className={`${cinzel.variable} ${cinzelDecorative.variable} ${inter.variable} ${norse.variable}`}
       >
         {children}
         <Toaster />

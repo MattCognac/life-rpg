@@ -32,7 +32,7 @@ export default async function AchievementsPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div>
-        <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold">
+        <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold w-fit">
           Achievements
         </h1>
         <p className="text-sm text-muted-foreground mt-1 font-body">

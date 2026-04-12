@@ -51,6 +51,20 @@ export async function changeClass(newClass: string): Promise<ActionResult> {
   }
 }
 
+export async function completeTutorial(): Promise<ActionResult> {
+  try {
+    const userId = await getAuthUser();
+    await db.character.update({
+      where: { userId },
+      data: { hasCompletedTutorial: true },
+    });
+    revalidatePath("/");
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Failed" };
+  }
+}
+
 export async function createCharacter(
   name: string,
   characterClass: CharacterClass,

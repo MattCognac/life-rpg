@@ -4,16 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  ScrollText,
+  Swords,
+  Sun,
   UserCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const questLogPrefixes = ["/quest-log", "/quests", "/chains", "/daily"];
-
 const items = [
   { href: "/", label: "Home", icon: LayoutDashboard },
-  { href: "/quest-log", label: "Quest Log", icon: ScrollText },
+  { href: "/quests", label: "Quests", icon: Swords },
+  { href: "/daily", label: "Dailies", icon: Sun },
   { href: "/character", label: "Hero", icon: UserCircle },
 ];
 
@@ -27,9 +27,7 @@ export function MobileNav() {
           const active =
             item.href === "/"
               ? pathname === "/"
-              : item.href === "/quest-log"
-                ? questLogPrefixes.some((p) => pathname.startsWith(p))
-                : pathname.startsWith(item.href);
+              : pathname.startsWith(item.href);
           const Icon = item.icon;
           return (
             <Link

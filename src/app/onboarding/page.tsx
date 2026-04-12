@@ -82,7 +82,7 @@ export default function OnboardingPage() {
                     autoFocus
                     maxLength={30}
                     className="w-full px-4 py-3 bg-input border border-border text-foreground text-center text-lg font-display tracking-wider focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
-                    placeholder="Ragnar"
+                    placeholder="Enter your name"
                   />
                 </div>
                 <button
@@ -128,9 +128,6 @@ export default function OnboardingPage() {
                     <div className="font-display text-sm tracking-wider uppercase text-foreground">
                       {cls.name}
                     </div>
-                    <div className="text-[10px] font-body text-muted-foreground italic leading-tight">
-                      &ldquo;{cls.flavor}&rdquo;
-                    </div>
                   </button>
                 );
               })}
@@ -171,9 +168,6 @@ export default function OnboardingPage() {
                 <h1 className="font-display text-4xl tracking-widest text-gradient-gold uppercase mt-1">
                   {name}
                 </h1>
-                <p className="text-sm text-muted-foreground mt-3 font-body italic">
-                  &ldquo;{CHARACTER_CLASSES[selectedClass].flavor}&rdquo;
-                </p>
               </div>
 
               {error && (

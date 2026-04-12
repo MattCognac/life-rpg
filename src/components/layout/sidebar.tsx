@@ -4,22 +4,34 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
-  ScrollText,
+  Swords,
+  Link2,
+  Sun,
   UserCircle,
   Trophy,
   LogOut,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-
-const questLogPrefixes = ["/quest-log", "/quests", "/chains", "/daily"];
+import { reopenTutorial } from "@/components/onboarding/tutorial-overlay";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/quest-log", label: "Quest Log", icon: ScrollText },
-  { href: "/character", label: "Character", icon: UserCircle },
-  { href: "/achievements", label: "Achievements", icon: Trophy },
-];
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, tutorialKey: "nav-dashboard" },
+  { type: "section" as const, label: "Quests" },
+  { href: "/quests", label: "Quests", icon: Swords, tutorialKey: "nav-quests" },
+  { href: "/chains", label: "Chains", icon: Link2, tutorialKey: "nav-chains" },
+  { href: "/daily", label: "Dailies", icon: Sun, tutorialKey: "nav-dailies" },
+  { type: "section" as const, label: "Profile" },
+  { href: "/character", label: "Character", icon: UserCircle, tutorialKey: "nav-character" },
+  { href: "/achievements", label: "Achievements", icon: Trophy, tutorialKey: "nav-achievements" },
+] as const;
+
+type NavItem = (typeof navItems)[number];
+
+function isLink(item: NavItem): item is Extract<NavItem, { href: string }> {
+  return "href" in item;
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -43,21 +55,35 @@ export function Sidebar() {
         </div>
       </Link>
 
-      <nav className="flex-1 py-6 px-3 space-y-1">
-        {navItems.map((item) => {
+      <nav className="flex-1 py-4 px-3 space-y-0.5">
+        {navItems.map((item, i) => {
+          if (!isLink(item)) {
+            return (
+              <div
+                key={item.label}
+                className={cn(
+                  "px-3 pt-5 pb-2 text-[9px] font-display uppercase tracking-[0.3em] text-muted-foreground/60",
+                  i === 0 && "pt-2"
+                )}
+              >
+                {item.label}
+              </div>
+            );
+          }
+
           const Icon = item.icon;
           const active =
             item.href === "/"
               ? pathname === "/"
-              : item.href === "/quest-log"
-                ? questLogPrefixes.some((p) => pathname.startsWith(p))
-                : item.href === "/character"
-                  ? pathname.startsWith("/character") || pathname.startsWith("/skills")
-                  : pathname.startsWith(item.href);
+              : item.href === "/character"
+                ? pathname.startsWith("/character") || pathname.startsWith("/skills")
+                : pathname.startsWith(item.href);
+
           return (
             <Link
               key={item.href}
               href={item.href}
+              data-tutorial={item.tutorialKey}
               className={cn(
                 "group relative flex items-center gap-3 px-3 py-2.5 font-display uppercase tracking-wider text-sm transition-all duration-200 border-l-2",
                 active
@@ -87,10 +113,14 @@ export function Sidebar() {
         </button>
       </div>
 
-      <div className="px-6 py-4 border-t border-border">
-        <div className="text-[10px] font-body tracking-wider text-muted-foreground uppercase">
-          Open Source • MIT
-        </div>
+      <div className="px-3 py-3 border-t border-border">
+        <button
+          onClick={reopenTutorial}
+          className="w-full flex items-center gap-3 px-3 py-2 font-display uppercase tracking-wider text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <HelpCircle className="w-3.5 h-3.5" />
+          <span>Tutorial</span>
+        </button>
       </div>
     </aside>
   );

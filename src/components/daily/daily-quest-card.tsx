@@ -25,16 +25,19 @@ interface Props {
     longestStreak: number;
   } | null;
   completedToday: boolean;
+  inactive?: boolean;
+  scheduleName?: string;
 }
 
-export function DailyQuestCard({ quest, streak, completedToday }: Props) {
+export function DailyQuestCard({ quest, streak, completedToday, inactive, scheduleName }: Props) {
   return (
-    <div className="relative ember-hover cursor-pointer">
+    <div className={cn("relative cursor-pointer", !inactive && "ember-hover")}>
       <Link href={`/quests/${quest.id}`} className="absolute inset-0 z-10" />
       <div
         className={cn(
           "norse-card p-4 transition-all cursor-pointer relative z-20 pointer-events-none [&_button]:pointer-events-auto [&_button]:relative [&_button]:z-30",
-          completedToday && "border-success/40 opacity-90"
+          completedToday && "border-success/40 opacity-90",
+          inactive && "opacity-50"
         )}
       >
         <div className="flex items-start justify-between gap-3">
@@ -44,6 +47,11 @@ export function DailyQuestCard({ quest, streak, completedToday }: Props) {
                 <Badge variant="success">
                   <Check className="w-3 h-3 mr-1" />
                   Done today
+                </Badge>
+              )}
+              {inactive && scheduleName && (
+                <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30">
+                  {scheduleName}
                 </Badge>
               )}
               {quest.skill && (
@@ -93,12 +101,14 @@ export function DailyQuestCard({ quest, streak, completedToday }: Props) {
               size="sm"
             />
           </div>
-          <CompleteQuestButton
-            questId={quest.id}
-            completed={completedToday}
-            isDaily
-            size="sm"
-          />
+          {!inactive && (
+            <CompleteQuestButton
+              questId={quest.id}
+              completed={completedToday}
+              isDaily
+              size="sm"
+            />
+          )}
         </div>
       </div>
     </div>
