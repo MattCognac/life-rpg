@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cinzel, Cinzel_Decorative, Inter } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
+import { MusicToggle } from "@/components/shared/music-toggle";
 import { Toaster } from "@/components/shared/toaster";
 
 const cinzel = Cinzel({
@@ -47,6 +48,7 @@ export default function RootLayout({
       >
         {children}
         <Toaster />
+        <MusicToggle />
       </body>
     </html>
   );
