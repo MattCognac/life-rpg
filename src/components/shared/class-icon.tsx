@@ -2,13 +2,11 @@ import {
   Swords,
   Sparkles,
   Compass,
-  Zap,
-  Shield,
   Leaf,
   Coins,
   TreePine,
-  Palette,
   Wrench,
+  Scroll,
 } from "lucide-react";
 import { CHARACTER_CLASSES, type CharacterClass } from "@/lib/classes";
 
@@ -16,13 +14,11 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Swords,
   Sparkles,
   Compass,
-  Zap,
-  Shield,
   Leaf,
   Coins,
   TreePine,
-  Palette,
   Wrench,
+  Scroll,
 };
 
 interface ClassIconProps {

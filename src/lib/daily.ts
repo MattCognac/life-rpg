@@ -12,12 +12,17 @@ export function isCompletedToday(completedAt: Date | null | undefined): boolean 
 
 /**
  * Is the streak broken? True if last completion was before yesterday.
+ * When graceDays > 0 (Monk perk), allows that many extra missed days.
  */
-export function isStreakBroken(lastCompleted: Date | null | undefined): boolean {
+export function isStreakBroken(
+  lastCompleted: Date | null | undefined,
+  graceDays = 0,
+): boolean {
   if (!lastCompleted) return false; // never started != broken
   const last = new Date(lastCompleted);
   last.setHours(0, 0, 0, 0);
-  return last.getTime() < startOfYesterday().getTime();
+  const cutoff = startOfYesterday().getTime() - graceDays * 86_400_000;
+  return last.getTime() < cutoff;
 }
 
 /**

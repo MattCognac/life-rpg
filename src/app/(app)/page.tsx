@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { getCharacterForUser } from "@/lib/character";
 import { getAuthUser } from "@/lib/auth";
 import { computeLevel, titleForLevel } from "@/lib/xp";
-import { CHARACTER_CLASSES, type CharacterClass } from "@/lib/classes";
+import { CHARACTER_CLASSES, resolveClass } from "@/lib/classes";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { XpChart } from "@/components/dashboard/xp-chart";
 import { SkillRadar } from "@/components/dashboard/skill-radar";
@@ -110,7 +110,8 @@ export default async function DashboardPage() {
 
   const { level, currentLevelXp, xpForNextLevel } = computeLevel(character.totalXp);
   const title = titleForLevel(level);
-  const classDef = CHARACTER_CLASSES[character.class as CharacterClass];
+  const characterClass = resolveClass(character.class);
+  const classDef = CHARACTER_CLASSES[characterClass];
 
   const activeDailies = dailyQuests.filter((q) => isDailyActiveToday(q.dailyCron));
   const streakByQuest = new Map(dailyStreaks.map((s) => [s.questId, s]));
@@ -157,7 +158,7 @@ export default async function DashboardPage() {
           </div>
           <EditCharacter
             currentName={character.name}
-            currentClass={character.class as CharacterClass}
+            currentClass={characterClass}
           />
         </div>
 
@@ -167,7 +168,7 @@ export default async function DashboardPage() {
             size="lg"
             icon={
               <ClassIcon
-                characterClass={character.class as CharacterClass}
+                characterClass={characterClass}
                 className="w-full h-full"
               />
             }

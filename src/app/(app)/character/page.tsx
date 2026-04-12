@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { computeLevel, titleForLevel } from "@/lib/xp";
 import { getCharacterForUser } from "@/lib/character";
 import { getAuthUser } from "@/lib/auth";
-import { CHARACTER_CLASSES, type CharacterClass } from "@/lib/classes";
+import { CHARACTER_CLASSES, resolveClass } from "@/lib/classes";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { XpBar } from "@/components/shared/xp-bar";
 import { LevelBadge } from "@/components/shared/level-badge";
@@ -41,7 +41,8 @@ export default async function CharacterPage() {
 
   const { level, currentLevelXp, xpForNextLevel } = computeLevel(character.totalXp);
   const title = titleForLevel(level);
-  const classDef = CHARACTER_CLASSES[character.class as CharacterClass];
+  const characterClass = resolveClass(character.class);
+  const classDef = CHARACTER_CLASSES[characterClass];
 
   const daysActive = Math.floor(
     (Date.now() - new Date(character.createdAt).getTime()) / (1000 * 60 * 60 * 24)
@@ -90,7 +91,7 @@ export default async function CharacterPage() {
           </div>
           <EditCharacter
             currentName={character.name}
-            currentClass={character.class as CharacterClass}
+            currentClass={characterClass}
           />
         </div>
 
@@ -100,7 +101,7 @@ export default async function CharacterPage() {
             size="xl"
             icon={
               <ClassIcon
-                characterClass={character.class as CharacterClass}
+                characterClass={characterClass}
                 className="w-full h-full"
               />
             }

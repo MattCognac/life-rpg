@@ -9,6 +9,12 @@ import { createCharacter } from "@/actions/character-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type Step = "name" | "class" | "confirm";
 
@@ -105,29 +111,38 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-              {CLASS_KEYS.map((key) => {
-                const cls = CHARACTER_CLASSES[key];
-                return (
-                  <button
-                    key={key}
-                    onClick={() => handleClassSelect(key)}
-                    className={cn(
-                      "norse-card p-4 ember-hover text-center space-y-2 transition-all cursor-pointer",
-                      selectedClass === key &&
-                        "border-primary shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
-                    )}
-                  >
-                    <div className="w-10 h-10 mx-auto flex items-center justify-center">
-                      <ClassIcon characterClass={key} className="w-8 h-8 text-primary" />
-                    </div>
-                    <div className="font-display text-sm tracking-wider uppercase text-foreground">
-                      {cls.name}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <TooltipProvider delayDuration={300}>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {CLASS_KEYS.map((key) => {
+                  const cls = CHARACTER_CLASSES[key];
+                  return (
+                    <Tooltip key={key}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleClassSelect(key)}
+                          className={cn(
+                            "norse-card p-4 ember-hover text-center space-y-2 transition-all cursor-pointer",
+                            selectedClass === key &&
+                              "border-primary shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+                          )}
+                        >
+                          <div className="w-10 h-10 mx-auto flex items-center justify-center">
+                            <ClassIcon characterClass={key} className="w-8 h-8 text-primary" />
+                          </div>
+                          <div className="font-display text-sm tracking-wider uppercase text-foreground">
+                            {cls.name}
+                          </div>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-[220px] text-center">
+                        <p className="font-medium italic text-xs">{cls.flavor}</p>
+                        <p className="text-muted-foreground text-[10px] mt-1">{cls.description}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            </TooltipProvider>
 
             <div className="text-center">
               <button

@@ -10,6 +10,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { CHARACTER_CLASSES, CLASS_KEYS, type CharacterClass } from "@/lib/classes";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { changeClass } from "@/actions/character-actions";
@@ -48,29 +54,38 @@ export function ChangeClass({ currentClass }: { currentClass: CharacterClass }) 
         <DialogHeader>
           <DialogTitle>Change Your Path</DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {CLASS_KEYS.map((key) => {
-            const cls = CHARACTER_CLASSES[key];
-            const active = selected === key;
-            return (
-              <button
-                key={key}
-                onClick={() => setSelected(key)}
-                className={cn(
-                  "norse-card p-3 text-center space-y-1.5 transition-all cursor-pointer",
-                  active
-                    ? "border-primary shadow-[0_0_15px_hsl(var(--primary)/0.3)]"
-                    : "hover:border-muted-foreground/40"
-                )}
-              >
-                <ClassIcon characterClass={key} className="w-6 h-6 mx-auto text-primary" />
-                <div className="font-display text-xs tracking-wider uppercase text-foreground">
-                  {cls.name}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <TooltipProvider delayDuration={300}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {CLASS_KEYS.map((key) => {
+              const cls = CHARACTER_CLASSES[key];
+              const active = selected === key;
+              return (
+                <Tooltip key={key}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setSelected(key)}
+                      className={cn(
+                        "norse-card p-3 text-center space-y-1.5 transition-all cursor-pointer",
+                        active
+                          ? "border-primary shadow-[0_0_15px_hsl(var(--primary)/0.3)]"
+                          : "hover:border-muted-foreground/40"
+                      )}
+                    >
+                      <ClassIcon characterClass={key} className="w-6 h-6 mx-auto text-primary" />
+                      <div className="font-display text-xs tracking-wider uppercase text-foreground">
+                        {cls.name}
+                      </div>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[220px] text-center">
+                    <p className="font-medium italic text-xs">{cls.flavor}</p>
+                    <p className="text-muted-foreground text-[10px] mt-1">{cls.description}</p>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+        </TooltipProvider>
         <div className="flex justify-end gap-2 mt-2">
           <Button variant="ghost" onClick={() => setOpen(false)}>
             Cancel

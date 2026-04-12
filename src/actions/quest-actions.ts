@@ -18,6 +18,11 @@ import { cleanupOrphanedSkill, propagateXpToParent } from "@/actions/skill-actio
 import { CHAIN_TIER_BONUS, type ChainTier } from "@/lib/realms";
 import { revalidateApp } from "@/lib/revalidate";
 import { refundCharacterXp, refundSkillXp } from "@/lib/xp-operations";
+import {
+  CHARACTER_CLASSES,
+  resolveClass,
+  applyClassXpModifiers,
+} from "@/lib/classes";
 
 export async function createQuest(input: {
   title: string;
@@ -247,10 +252,18 @@ export async function completeQuest(id: string): Promise<ActionResult> {
     const userId = await getAuthUser();
     const quest = await db.quest.findFirst({
       where: { id, userId },
-      include: { skill: true, chain: true },
+      include: {
+        skill: { include: { parent: { select: { realm: true } } } },
+        chain: true,
+      },
     });
     if (!quest) return { success: false, error: "Quest not found" };
     if (quest.status === "locked") return { success: false, error: "Quest is locked" };
+
+    const character = await getCharacterForUser(userId);
+    const characterClass = character ? resolveClass(character.class) : "warrior";
+    const classDef = CHARACTER_CLASSES[characterClass];
+    const questRealm = quest.skill?.realm ?? quest.skill?.parent?.realm ?? null;
 
     const events: ActionEvents = {};
     let xpToAward = quest.xpReward;
@@ -272,12 +285,14 @@ export async function completeQuest(id: string): Promise<ActionResult> {
       });
       if (streak) {
         let newStreak: number;
-        if (isStreakBroken(streak.lastCompleted)) {
+        const graceDays = classDef.perk === "streak_grace" ? 1 : 0;
+        if (isStreakBroken(streak.lastCompleted, graceDays)) {
           newStreak = 1;
         } else {
           newStreak = streak.currentStreak + 1;
         }
-        const bonus = streakMultiplier(newStreak);
+        const earlyStreak = classDef.perk === "early_streak";
+        const bonus = streakMultiplier(newStreak, earlyStreak);
         xpToAward = Math.round(quest.xpReward * bonus);
 
         await db.dailyStreak.update({
@@ -292,6 +307,16 @@ export async function completeQuest(id: string): Promise<ActionResult> {
       }
     }
 
+    xpToAward = applyClassXpModifiers({
+      baseXp: xpToAward,
+      characterClass,
+      realm: questRealm,
+      difficulty: quest.difficulty,
+      isDaily: quest.isDaily,
+      isChainQuest: !!quest.chainId,
+      skillLevel: quest.skill?.level ?? 1,
+    });
+
     events.xpAwarded = xpToAward;
 
     await db.questCompletion.create({
@@ -305,7 +330,6 @@ export async function completeQuest(id: string): Promise<ActionResult> {
       });
     }
 
-    const character = await getCharacterForUser(userId);
     if (character) {
       const newTotalXp = character.totalXp + xpToAward;
       const { level: newLevel } = computeLevel(newTotalXp);
@@ -333,7 +357,8 @@ export async function completeQuest(id: string): Promise<ActionResult> {
         where: { id: quest.skill.id },
         data: { totalXp: newSkillXp, level: newSkillLevel },
       });
-      await propagateXpToParent(quest.skill.id, xpToAward);
+      const propagationMultiplier = classDef.perk === "deep_craft" ? 2 : 1;
+      await propagateXpToParent(quest.skill.id, xpToAward * propagationMultiplier);
     }
 
     if (quest.chainId && quest.chainOrder != null) {
@@ -361,7 +386,8 @@ export async function completeQuest(id: string): Promise<ActionResult> {
         };
 
         const tier = (quest.chain?.tier ?? "common") as ChainTier;
-        const bonusMultiplier = CHAIN_TIER_BONUS[tier] ?? 0;
+        let bonusMultiplier = CHAIN_TIER_BONUS[tier] ?? 0;
+        if (classDef.perk === "chain_bonus") bonusMultiplier += 0.15;
         if (bonusMultiplier > 0) {
           const chainTotalXp = chainQuests.reduce((sum, q) => sum + q.xpReward, 0);
           const bonusXp = Math.round(chainTotalXp * bonusMultiplier);

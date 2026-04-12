@@ -3,7 +3,7 @@ import { computeLevel, titleForLevel } from "@/lib/xp";
 import { getAuthUser } from "@/lib/auth";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { LevelBadge } from "@/components/shared/level-badge";
-import { CHARACTER_CLASSES, type CharacterClass } from "@/lib/classes";
+import { CHARACTER_CLASSES, resolveClass } from "@/lib/classes";
 import { formatNumber } from "@/lib/utils";
 
 export async function Header() {
@@ -13,7 +13,8 @@ export async function Header() {
 
   const { level, currentLevelXp, xpForNextLevel } = computeLevel(character.totalXp);
   const title = titleForLevel(level);
-  const classDef = CHARACTER_CLASSES[character.class as CharacterClass];
+  const characterClass = resolveClass(character.class);
+  const classDef = CHARACTER_CLASSES[characterClass];
 
   return (
     <header className="sticky top-0 z-20 h-16 border-b border-border bg-background/80 backdrop-blur-md px-4 lg:px-8 flex items-center justify-between">
@@ -39,7 +40,7 @@ export async function Header() {
           icon={
             classDef ? (
               <ClassIcon
-                characterClass={character.class as CharacterClass}
+                characterClass={characterClass}
                 className="w-full h-full"
               />
             ) : undefined

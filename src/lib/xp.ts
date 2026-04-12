@@ -43,8 +43,16 @@ export function computeLevel(totalXp: number): {
 
 /**
  * Streak multiplier for daily quest XP rewards.
+ * When earlyStreak is true (Merchant perk), thresholds shift down by one tier.
  */
-export function streakMultiplier(streak: number): number {
+export function streakMultiplier(streak: number, earlyStreak = false): number {
+  if (earlyStreak) {
+    if (streak >= 14) return 2.0;
+    if (streak >= 7) return 1.5;
+    if (streak >= 3) return 1.25;
+    if (streak >= 1) return 1.1;
+    return 1.0;
+  }
   if (streak >= 30) return 2.0;
   if (streak >= 14) return 1.5;
   if (streak >= 7) return 1.25;

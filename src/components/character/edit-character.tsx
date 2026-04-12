@@ -14,6 +14,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { CHARACTER_CLASSES, CLASS_KEYS, type CharacterClass } from "@/lib/classes";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { renameCharacter, changeClass } from "@/actions/character-actions";
@@ -93,33 +99,42 @@ export function EditCharacter({ currentName, currentClass }: Props) {
 
           <div>
             <Label>Class</Label>
-            <div className="mt-1.5 grid grid-cols-2 md:grid-cols-3 gap-2">
-              {CLASS_KEYS.map((key) => {
-                const cls = CHARACTER_CLASSES[key];
-                const active = selectedClass === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setSelectedClass(key)}
-                    className={cn(
-                      "norse-card p-3 text-center space-y-1.5 transition-all cursor-pointer",
-                      active
-                        ? "border-primary shadow-[0_0_15px_hsl(var(--primary)/0.3)]"
-                        : "hover:border-muted-foreground/40"
-                    )}
-                  >
-                    <ClassIcon
-                      characterClass={key}
-                      className="w-6 h-6 mx-auto text-primary"
-                    />
-                    <div className="font-display text-xs tracking-wider uppercase text-foreground">
-                      {cls.name}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <TooltipProvider delayDuration={300}>
+              <div className="mt-1.5 grid grid-cols-2 md:grid-cols-4 gap-2">
+                {CLASS_KEYS.map((key) => {
+                  const cls = CHARACTER_CLASSES[key];
+                  const active = selectedClass === key;
+                  return (
+                    <Tooltip key={key}>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedClass(key)}
+                          className={cn(
+                            "norse-card p-3 text-center space-y-1.5 transition-all cursor-pointer",
+                            active
+                              ? "border-primary shadow-[0_0_15px_hsl(var(--primary)/0.3)]"
+                              : "hover:border-muted-foreground/40"
+                          )}
+                        >
+                          <ClassIcon
+                            characterClass={key}
+                            className="w-6 h-6 mx-auto text-primary"
+                          />
+                          <div className="font-display text-xs tracking-wider uppercase text-foreground">
+                            {cls.name}
+                          </div>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-[220px] text-center">
+                        <p className="font-medium italic text-xs">{cls.flavor}</p>
+                        <p className="text-muted-foreground text-[10px] mt-1">{cls.description}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            </TooltipProvider>
           </div>
         </div>
 
