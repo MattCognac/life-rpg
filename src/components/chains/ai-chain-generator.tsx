@@ -143,7 +143,15 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => {
+          if (isGenerating || generated) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (isGenerating || generated) e.preventDefault();
+        }}
+      >
         {!generated ? (
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -212,7 +220,7 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                 </div>
                 <div className="text-xs text-muted-foreground font-body">
                   Odin is reasoning through what your goal actually requires.
-                  Ambitious goals may take 30+ seconds to fully decompose.
+                  Ambitious goals may take up to a minute to fully decompose.
                 </div>
               </div>
             )}
