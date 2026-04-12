@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { CompleteQuestButton } from "@/components/quests/complete-quest-button";
+import { DifficultyStars } from "@/components/quests/difficulty-stars";
 import { Button } from "@/components/ui/button";
-import { Sun, Plus, ArrowRight, Check, Flame } from "lucide-react";
+import { Sun, Plus, ArrowRight, Check, Flame, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Daily {
   id: string;
   title: string;
   xpReward: number;
+  difficulty: number;
 }
 
 interface DailyWithMeta {
@@ -78,9 +80,14 @@ export function DailiesBlock({ dailies, totalActive }: Props) {
                 </Link>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
+                <DifficultyStars difficulty={quest.difficulty} />
+                <div className="flex items-center gap-1 text-gold font-display">
+                  <Zap className="w-3 h-3" />
+                  <span className="text-sm">{quest.xpReward}</span>
+                </div>
                 {streak && streak.currentStreak > 0 && (
                   <div className="flex items-center gap-0.5 text-[10px] font-display text-orange-400">
-                    <Flame className="w-3 h-3" />
+                    <Flame className="w-2.5 h-2.5" />
                     {streak.currentStreak}
                   </div>
                 )}

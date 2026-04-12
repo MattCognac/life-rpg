@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { QuestCard } from "@/components/quests/quest-card";
+import { DifficultyStars } from "@/components/quests/difficulty-stars";
+import { CompleteQuestButton } from "@/components/quests/complete-quest-button";
 import { AIChainGenerator } from "@/components/chains/ai-chain-generator";
-import { EmptyState } from "@/components/shared/empty-state";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Swords, Plus, Sparkles, ArrowRight, Link2 } from "lucide-react";
+import { Swords, Plus, Sparkles, ArrowRight, Link2, Zap, Sun } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Quest {
   id: string;
@@ -73,17 +75,43 @@ export function ActiveQuests({ quests }: Props) {
             </div>
           </div>
         ) : (
-          <div>
+          <div className="divide-y divide-border/50">
             {quests.map((quest) => (
-              <div key={quest.id}>
-                <QuestCard
-                  quest={quest}
-                  href={`/quests/${quest.id}`}
-                  compact
-                  variant="row"
-                />
+              <div key={quest.id} className="py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {quest.isDaily && <Sun className="w-3 h-3 text-gold flex-shrink-0" />}
+                    {quest.skill && (
+                      <Badge
+                        variant="outline"
+                        className="flex-shrink-0"
+                        style={{
+                          borderColor: `${quest.skill.color}80`,
+                          color: quest.skill.color,
+                          backgroundColor: `${quest.skill.color}10`,
+                        }}
+                      >
+                        {quest.skill.name}
+                      </Badge>
+                    )}
+                    <Link
+                      href={`/quests/${quest.id}`}
+                      className="font-display text-sm tracking-wider uppercase truncate hover:text-primary transition-colors"
+                    >
+                      {quest.title}
+                    </Link>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <DifficultyStars difficulty={quest.difficulty} />
+                    <div className="flex items-center gap-1 text-gold font-display">
+                      <Zap className="w-3 h-3" />
+                      <span className="text-sm">{quest.xpReward}</span>
+                    </div>
+                    <CompleteQuestButton questId={quest.id} size="icon" />
+                  </div>
+                </div>
                 {quest.chain && (
-                  <div className="flex items-center gap-1.5 pb-2 pl-1 -mt-1 text-[10px] font-display uppercase tracking-widest text-muted-foreground">
+                  <div className="flex items-center gap-1.5 mt-1 pl-0 text-[10px] font-display uppercase tracking-widest text-muted-foreground">
                     <Link2 className="w-3 h-3" />
                     <Link
                       href={`/chains/${quest.chain.id}`}

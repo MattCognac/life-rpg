@@ -6,13 +6,13 @@ import { completeTutorial } from "@/actions/character-actions";
 import {
   Shield,
   Scroll,
-  Trophy,
   Sparkles,
-  Zap,
   ChevronRight,
   ChevronLeft,
   X,
   Target,
+  Sun,
+  Map,
 } from "lucide-react";
 
 type TutorialStep = {
@@ -39,7 +39,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     target: '[data-tutorial="hero"]',
     title: "Your Hero",
     description:
-      "This is you. Your level badge, title, XP bar, and key stats live here. Complete quests to earn XP and watch your hero grow stronger.",
+      "This is your character. Your level badge, title, XP bar, and key stats all live here. Complete quests to earn XP and watch your hero grow stronger.",
     icon: <Shield className="w-6 h-6" />,
     tooltipPosition: "below",
   },
@@ -48,8 +48,17 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     target: '[data-tutorial="quests"]',
     title: "Active Quests",
     description:
-      "Your active quests live here with chain context. Use the sidebar to jump to Quests, Chains, or Dailies for the full view.",
+      "Your active quests are shown here with chain progress. Create quests manually or use Odin AI to generate a full quest chain from any goal.",
     icon: <Scroll className="w-6 h-6" />,
+    tooltipPosition: "below",
+  },
+  {
+    id: "dailies",
+    target: '[data-tutorial="dailies"]',
+    title: "Dailies",
+    description:
+      "Dailies are recurring quests you can complete every day. Build streaks to earn bonus XP and stay consistent with your habits.",
+    icon: <Sun className="w-6 h-6" />,
     tooltipPosition: "below",
   },
   {
@@ -62,12 +71,12 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     tooltipPosition: "below",
   },
   {
-    id: "achievements",
-    target: '[data-tutorial="nav-achievements"]',
-    title: "Achievements",
+    id: "navigation",
+    target: '[data-tutorial="sidebar-nav"]',
+    title: "Explore the Realm",
     description:
-      "Achievements unlock automatically as you hit milestones — completing your first quest, reaching a streak, leveling up. Check the Achievements page to see them all.",
-    icon: <Trophy className="w-6 h-6" />,
+      "Use the sidebar to navigate between your Dashboard, Quests, Chains, Dailies, Character page, and Achievements. Each section gives you a deeper view of your journey.",
+    icon: <Map className="w-6 h-6" />,
     tooltipPosition: "right",
   },
   {
@@ -158,7 +167,7 @@ export function TutorialOverlay({ characterName, open }: TutorialOverlayProps) {
     };
     setSpotlightRect(newRect);
 
-    const tooltipWidth = 380;
+    const tooltipWidth = 420;
     const tooltipGap = 16;
     const pos = currentStep.tooltipPosition;
 
@@ -265,11 +274,13 @@ export function TutorialOverlay({ characterName, open }: TutorialOverlayProps) {
   if (!visible) return null;
 
   const isCentered = currentStep.tooltipPosition === "center";
+  const targetMissing = !isCentered && currentStep.target && !spotlightRect;
+  const showCenteredFallback = isCentered || targetMissing;
 
   return (
     <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="Tutorial">
-      {/* Dark overlay for centered steps */}
-      {isCentered && (
+      {/* Dark overlay for centered / fallback steps */}
+      {showCenteredFallback && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm animate-fade-in" />
       )}
 
@@ -308,7 +319,7 @@ export function TutorialOverlay({ characterName, open }: TutorialOverlayProps) {
         </div>
       )}
 
-      {/* Centered modal card (welcome only) */}
+      {/* Centered modal card (welcome + fallback when target not found) */}
       {isCentered && (
         <div className="fixed inset-0 flex items-center justify-center p-4 z-[72]">
           <div className="norse-card p-8 md:p-10 relative overflow-hidden max-w-lg w-full animate-fade-in-up">
@@ -335,78 +346,97 @@ export function TutorialOverlay({ characterName, open }: TutorialOverlayProps) {
         </div>
       )}
 
+      {/* Fallback centered card when a targeted step's element isn't in the DOM (e.g. sidebar on mobile) */}
+      {targetMissing && (
+        <div className="fixed inset-0 flex items-center justify-center p-4 z-[72]">
+          <div className="norse-card p-8 relative overflow-hidden max-w-md w-full animate-fade-in-up border-t-2 border-t-gold/50">
+            <div className="relative">
+              {renderTooltipContent()}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Positioned tooltip card for spotlight steps */}
       {!isCentered && spotlightRect && (
         <div style={{ ...tooltipStyle, zIndex: 72 }} className="animate-fade-in-up">
-          <div className="norse-card p-5 pb-4 border-t-2 border-t-gold/50 shadow-xl">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 flex-shrink-0 rounded-full border border-gold/30 bg-gold/10 flex items-center justify-center text-gold">
-                {currentStep.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-display text-base tracking-wider uppercase text-gradient-gold">
-                  {currentStep.title}
-                </h3>
-                <p className="text-sm text-muted-foreground font-body mt-1.5 leading-relaxed">
-                  {currentStep.description}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/50">
-              <div className="flex gap-1.5">
-                {TUTORIAL_STEPS.map((_, i) => (
-                  <div
-                    key={i}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                      i === step
-                        ? "bg-gold scale-125"
-                        : i < step
-                          ? "bg-gold/40"
-                          : "bg-border"
-                    }`}
-                  />
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2">
-                {!isLastStep && (
-                  <button
-                    onClick={dismiss}
-                    disabled={isFinishing}
-                    className="text-xs text-muted-foreground hover:text-foreground font-body transition-colors"
-                  >
-                    Skip
-                  </button>
-                )}
-                {step > 0 && (
-                  <Button variant="ghost" size="sm" onClick={handleBack}>
-                    <ChevronLeft className="w-4 h-4" />
-                    Back
-                  </Button>
-                )}
-                {isLastStep ? (
-                  <Button
-                    size="sm"
-                    onClick={finish}
-                    disabled={isFinishing}
-                  >
-                    Finish Tour
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                ) : (
-                  <Button size="sm" onClick={handleNext}>
-                    Next
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
+          <div className="norse-card p-6 pb-5 border-t-2 border-t-gold/50 shadow-xl">
+            {renderTooltipContent()}
           </div>
         </div>
       )}
     </div>
   );
+
+  function renderTooltipContent() {
+    return (
+      <>
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 flex-shrink-0 rounded-full border border-gold/30 bg-gold/10 flex items-center justify-center text-gold">
+            {currentStep.icon}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-display text-base tracking-wider uppercase text-gradient-gold">
+              {currentStep.title}
+            </h3>
+            <p className="text-sm text-muted-foreground font-body mt-2 leading-relaxed">
+              {currentStep.description}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mt-5 pt-3.5 border-t border-border/50">
+          <div className="flex gap-1.5">
+            {TUTORIAL_STEPS.map((_, i) => (
+              <div
+                key={i}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  i === step
+                    ? "bg-gold scale-125"
+                    : i < step
+                      ? "bg-gold/40"
+                      : "bg-border"
+                }`}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {!isLastStep && (
+              <button
+                onClick={dismiss}
+                disabled={isFinishing}
+                className="text-xs text-muted-foreground hover:text-foreground font-body transition-colors"
+              >
+                Skip
+              </button>
+            )}
+            {step > 0 && (
+              <Button variant="ghost" size="sm" onClick={handleBack}>
+                <ChevronLeft className="w-4 h-4" />
+                Back
+              </Button>
+            )}
+            {isLastStep ? (
+              <Button
+                size="sm"
+                onClick={finish}
+                disabled={isFinishing}
+              >
+                Finish Tour
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button size="sm" onClick={handleNext}>
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
 
   function renderWelcomeStep() {
     return (

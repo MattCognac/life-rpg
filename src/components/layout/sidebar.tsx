@@ -55,7 +55,7 @@ export function Sidebar() {
         </div>
       </Link>
 
-      <nav className="flex-1 py-4 px-3 space-y-0.5">
+      <nav data-tutorial="sidebar-nav" className="flex-1 py-4 px-3 space-y-0.5">
         {navItems.map((item, i) => {
           if (!isLink(item)) {
             return (

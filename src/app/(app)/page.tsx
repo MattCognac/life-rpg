@@ -191,14 +191,16 @@ export default async function DashboardPage() {
         <div data-tutorial="quests" className="lg:col-span-2 flex">
           <ActiveQuests quests={activeQuests} />
         </div>
-        <DailiesBlock
-          dailies={activeDailies.slice(0, 6).map((q) => ({
-            quest: q,
-            streak: streakByQuest.get(q.id) ?? null,
-            completedToday: isCompletedToday(q.completions[0]?.completedAt ?? null),
-          }))}
-          totalActive={activeDailies.length}
-        />
+        <div data-tutorial="dailies">
+          <DailiesBlock
+            dailies={activeDailies.slice(0, 6).map((q) => ({
+              quest: q,
+              streak: streakByQuest.get(q.id) ?? null,
+              completedToday: isCompletedToday(q.completions[0]?.completedAt ?? null),
+            }))}
+            totalActive={activeDailies.length}
+          />
+        </div>
       </div>
 
       {/* XP Chart + Skills */}
