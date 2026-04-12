@@ -7,6 +7,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z
     .string()
     .min(1, "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is required"),
+  SUPABASE_SECRET_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
 });
 
@@ -16,6 +17,7 @@ const parsed = envSchema.safeParse({
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
 });
 

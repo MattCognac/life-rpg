@@ -11,6 +11,7 @@ import {
   Trophy,
   LogOut,
   BookOpen,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -112,6 +113,21 @@ export function Sidebar() {
       </nav>
 
       <div className="px-3 pb-1 space-y-0.5">
+        <a
+          href="/settings"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("/settings");
+          }}
+          className={cn(
+            bottomButtonClass,
+            pathname.startsWith("/settings") &&
+              "text-primary bg-primary/10 border-primary",
+          )}
+        >
+          <Settings className="w-4 h-4" />
+          <span>Settings</span>
+        </a>
         <button onClick={reopenTutorial} className={bottomButtonClass}>
           <BookOpen className="w-4 h-4" />
           <span>Tutorial</span>

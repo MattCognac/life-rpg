@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "An RPG quest system for real life — organize goals into chains, earn XP, level up skills.",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
