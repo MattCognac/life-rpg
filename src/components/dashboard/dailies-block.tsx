@@ -27,7 +27,7 @@ export function DailiesBlock({ dailies, totalActive }: Props) {
   const completedCount = dailies.filter((d) => d.completedToday).length;
 
   return (
-    <div className="norse-card p-5 flex flex-col">
+    <div className="norse-card p-5 h-full min-h-0 w-full flex flex-col">
       <div className="flex items-center justify-between pb-4 border-b border-border/50">
         <div>
           <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground">
@@ -47,7 +47,7 @@ export function DailiesBlock({ dailies, totalActive }: Props) {
       </div>
 
       {dailies.length === 0 ? (
-        <div className="py-6 flex flex-col items-center justify-center gap-3 text-center flex-1">
+        <div className="py-6 flex flex-col items-center justify-center gap-3 text-center flex-1 min-h-0">
           <Sun className="w-7 h-7 text-muted-foreground" />
           <p className="text-xs text-muted-foreground">
             No dailies yet. Build habits that stick.
@@ -60,7 +60,7 @@ export function DailiesBlock({ dailies, totalActive }: Props) {
           </Link>
         </div>
       ) : (
-        <div className="divide-y divide-border/50 pt-1 flex-1">
+        <div className="divide-y divide-border/50 pt-1 flex-1 min-h-0 overflow-y-auto">
           {dailies.map(({ quest, streak, completedToday }) => (
             <div
               key={quest.id}

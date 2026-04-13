@@ -25,6 +25,7 @@ export default async function QuestDetailPage({
     include: {
       skill: true,
       chain: true,
+      secondarySkills: { include: { skill: true } },
       completions: {
         orderBy: { completedAt: "desc" },
         take: 10,
@@ -75,6 +76,20 @@ export default async function QuestDetailPage({
               {quest.skill.name}
             </Badge>
           )}
+          {quest.secondarySkills.map((qs) => (
+            <Badge
+              key={qs.id}
+              variant="outline"
+              className="opacity-60"
+              style={{
+                borderColor: `${qs.skill.color}50`,
+                color: qs.skill.color,
+              }}
+            >
+              {qs.skill.name}
+              <span className="ml-1 text-[9px] opacity-70">+50% XP</span>
+            </Badge>
+          ))}
         </div>
 
         <h1 className="font-display text-2xl md:text-3xl tracking-wider uppercase text-foreground">

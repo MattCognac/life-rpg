@@ -18,6 +18,14 @@ const AI_GENERATE_LIMITS = [
   { max: 15, windowMs: 60 * 60_000, label: "per-hour" },
 ];
 
+const AI_MODEL = "claude-sonnet-4-6";
+
+const SecondarySkillSchema = z.object({
+  discipline: z.enum(DISCIPLINE_SLUGS),
+  skillName: z.string(),
+  specializationName: z.string().optional(),
+});
+
 const GeneratedQuestSchema = z.object({
   title: z
     .string()
@@ -33,21 +41,28 @@ const GeneratedQuestSchema = z.object({
     .min(1)
     .max(5)
     .describe(
-      "Difficulty: 1=Trivial (few minutes), 2=Easy (under an hour), 3=Medium (a few hours), 4=Hard (days of effort), 5=Legendary (major accomplishment)"
+      "Difficulty: 1=Trivial (a few minutes, very rare), 2=Easy (under an hour), 3=Medium (a few hours), 4=Hard (days of effort), 5=Legendary (major accomplishment, reserved for climactic milestones)"
     ),
   discipline: z
     .enum(DISCIPLINE_SLUGS)
-    .describe("Which discipline this quest belongs to"),
+    .describe("Discipline for this quest's skill. body=physical activity, mind=intellectual/analytical, spirit=inner growth, nature=animals/plants/outdoors, craft=making/creating things, life=household/finances/self-management. Classify by what you DO, not what you learn about."),
   skillName: z
     .string()
     .describe(
-      "The skill this quest develops (e.g., 'Archery', 'Cooking'). Reuse existing skills when they fit."
+      "The PRIMARY skill this quest develops (e.g., 'Archery', 'Cooking'). Reuse existing skills when they fit."
     ),
   specializationName: z
     .string()
     .optional()
     .describe(
-      "Optional specialization within the skill (e.g., 'Compound Bow', 'Grilling'). Only include if the quest develops a narrow specialization, not for simple/straightforward quests. Reuse existing specializations when they fit."
+      "Rarely used. A specialization within the skill (e.g., 'Compound Bow'). Only include for genuinely distinct sub-disciplines, NOT for techniques, maintenance, or fundamentals of the parent skill."
+    ),
+  secondarySkills: z
+    .array(SecondarySkillSchema)
+    .max(2)
+    .optional()
+    .describe(
+      "Optional 0-2 secondary skills this quest also develops (they receive 50% XP). Only include when the quest genuinely crosses into a different skill area. Most quests should have zero secondary skills."
     ),
 });
 
@@ -88,8 +103,6 @@ async function getSkillTree(userId: string): Promise<string> {
 }
 
 function buildSystemPrompt(skillTree: string): string {
-  const disciplineList = DISCIPLINES.map((d) => `- ${d.slug}: ${d.description}`).join("\n");
-
   return `You are a quest designer for Life RPG, a gamified self-improvement app. The user will give you a real-life goal and you must break it down into an ordered chain of quests that, completed in sequence, will get them from zero to accomplishing that goal.
 
 ## Your Primary Job: Accurate Decomposition
@@ -110,39 +123,106 @@ Then generate EXACTLY as many quests as the goal actually requires. Do not artif
 
 If the goal genuinely requires 50 steps to do right, write 50 steps. If it only requires 4, write 4. Your job is accuracy, not brevity.
 
+## Disciplines & Skills (Read This First)
+Every quest must be tagged to a DISCIPLINE and a PRIMARY SKILL. Getting these right is critical.
+
+### The 6 Disciplines (pick exactly one per quest):
+
+**body** — Physical prowess & adventure. The skill is exercised primarily through your body.
+Examples: Running, Swimming, Weightlifting, Martial Arts, Archery (as a sport/practice), Climbing, Yoga, Dance, Cycling, Shooting Sports.
+
+**mind** — Knowledge, technology & communication. The skill is primarily intellectual, analytical, or communicative.
+Examples: Programming, Web Development, Writing, Mathematics, Languages, Marketing, Public Speaking, Data Analysis, Music Theory, Chess.
+
+**spirit** — Spirituality, mindfulness & inner growth. The skill cultivates inner life, presence, or emotional depth.
+Examples: Meditation, Journaling, Breathwork, Prayer, Philosophy, Stoicism, Gratitude Practice.
+
+**nature** — The living world & its bounty. The skill involves interacting with animals, plants, land, water, or weather.
+Examples: Hunting, Fishing, Foraging, Gardening, Farming, Beekeeping, Animal Training, Herbalism, Mushroom Cultivation, Wilderness Survival, Birding.
+
+**craft** — Making, building & creating. The skill produces a tangible artifact, design, or creative work.
+Examples: Woodworking, Cooking, Blacksmithing, Sewing, Pottery, Photography, Graphic Design, UI Design, Leatherworking, 3D Printing, Music Production.
+
+**life** — Home, health, livelihood & self-management. The skill manages your household, finances, health, or daily systems.
+Examples: Personal Finance, Meal Prep, Home Maintenance, Parenting, Time Management, Negotiation, Career Development, Nutrition, First Aid.
+
+### The Core Principle (ALWAYS APPLY):
+**Tag every quest to the skill it ADVANCES in the context of this chain — not to a description of the action being performed.** Every quest exists to move the user closer to their goal. The discipline and skill should reflect what competency grows, not the surface-level verb.
+
+Buying gear, studying regulations, assembling supplies, filing paperwork, and making purchases are prerequisite steps. They advance the chain's core skill, not "Personal Finance", "Research", or "Shopping". A quest that exists only because the chain's primary goal requires it should be tagged to that primary goal's skill.
+
+Apply this test: **"After completing this quest, what is the user better at?"** The answer is the skill. A hunter who buys a bow is better at hunting preparation, not personal finance. A programmer who sets up a development environment is better at programming, not system administration.
+
+### Discipline Assignment Rules:
+- **The discipline follows the skill, not the action.** Once you determine the correct skill (using the core principle above), the discipline is whichever of the six categories that skill belongs to. Do not re-evaluate the discipline based on what the user physically does in a single quest.
+- **Don't let incidental actions override the skill's discipline.** Every skill involves learning, buying things, reading, and practicing. The discipline is determined by what the skill IS, not by one quest's activities. Studying hunting regulations is Nature (Hunting). Buying archery equipment is Body (Archery). These activities don't become Mind or Life just because they involve reading or spending money.
+
+### User's Existing Skills & Specializations:
+${skillTree}
+
 ## Quest Quality Rules
 
 - **Atomic and actionable.** Each quest must be a single concrete action or milestone that the user can unambiguously mark as complete. "Improve at guitar" is bad. "Play a song all the way through without stopping" is good.
 - **Progressive.** Difficulty rises across the chain. Early quests are trivial/easy (research, buy gear, first attempts). Middle quests are medium (deliberate practice, small wins). Late quests are hard/legendary (the real accomplishment and its variants).
 - **Building on each other.** Quest N+1 should naturally follow from completing quest N. The prerequisites of a later quest should be satisfied by completing earlier ones.
+- **Phase milestones.** Long chains naturally have distinct phases. Include milestone quests that mark the transition between phases — a satisfying "graduation" moment before the next chapter begins. These milestones should be higher difficulty to reflect the accomplishment.
 - **Specific titles.** Short and imperative. "Research bow types and pick one", "Hit a stationary target at 20 meters", "Field-dress a harvested animal".
 - **Practical descriptions.** 1-2 sentences explaining exactly what the user needs to do. No fluff.
 - **The final quest IS the goal.** The last quest in the chain should be the actual accomplishment the user asked for.
 
-## Skill System
-Every quest must be tagged to a DISCIPLINE and SKILL. A SPECIALIZATION is optional for quests that develop a specific focused branch of a skill.
+## Skill Rules
+- Reuse existing skill and specialization names when they fit (case-insensitive match). Create new skills only when genuinely needed.
+- Skill names should be plain, widely understood terms — the kind you'd see on a resume or in a course catalog.
+- Each skill is a SEPARATE XP TRACK. Splitting related activities across different skills fragments progress. Consolidate related activities under one skill.
+- **The "independent pursuit" test:** Before creating any new skill, ask: "Would this user independently pursue and grow this skill outside this chain?" If no — if the skill only exists as a support step, incidental action, or one-off task within the chain — tag the quest to the chain's core skill instead. A skill used by only 1 quest is almost always wrong.
 
-### The ${DISCIPLINES.length} Disciplines (pick exactly one per quest):
-${disciplineList}
+### Skill Naming:
+A skill name must be a **craft, discipline, or activity you practice** — never an outcome, phase, quality, or vague umbrella.
 
-### User's Existing Skills & Specializations:
-${skillTree}
+**Self-check — if ANY test fails, rename the skill:**
+1. "I spent an hour practicing ___" — must sound natural.
+2. "Introduction to ___" — must be a plausible course title.
+3. "I'm learning ___" — a stranger should instantly understand what you mean.
 
-Rules:
-- Reuse existing skill and specialization names when they fit (case-insensitive match).
-- Create new skills/specializations when genuinely needed.
-- Skill names should pass the "I'm good at X" test (e.g., "Cooking" not "Food").
-- Specialization names should be specific (e.g., "Grilling" not "Cooking Techniques").
-- Only include a specialization when the quest genuinely develops a specific focused branch. Simple or straightforward quests should tag to the skill only (omit specializationName).
+**Never use as skill names:** outcomes (Growth, Mastery), project phases (Planning, Execution), personal qualities (Discipline, Focus, Wellness), or vague business terms when a concrete practice exists (Growth → Marketing).
+
+**Tie-break:** prefer the more conventional, industry-standard noun — the one you'd find in a course catalog. If the only honest name feels awkward as a single word, use [Domain] + [Activity] (e.g. Event Planning, Grant Writing).
+
+### Specialization Rules (USE SPARINGLY):
+Specializations are uncommon. A specialization must represent a genuinely distinct sub-discipline that someone could independently specialize in and that is meaningfully different from the parent skill's core practice.
+
+DO NOT create specializations for:
+- Techniques or fundamentals (e.g., "Form", "Stance" are just part of Archery)
+- Maintenance or upkeep (e.g., "Bow Tuning" is part of Archery)
+- Sub-aspects everyone practicing the skill would do
+
+DO create specializations for:
+- Genuinely distinct branches (e.g., "Bow Hunting" under Hunting — distinct from rifle hunting)
+- Specialized sub-disciplines the user would independently identify with (e.g., "Olympic Lifting" under Weightlifting)
+
+A specialization should apply to multiple quests. If only 1 quest would use it, skip it. When in doubt, OMIT the specialization.
+
+### Secondary Skills (USE SPARINGLY):
+A quest can optionally tag 1-2 secondary skills that receive 50% XP. Only add these when the quest GENUINELY crosses into a different skill area that the user is independently developing in this chain.
+
+The secondary skill must pass the same "independent pursuit" test as any other skill. If the chain has multiple distinct skill tracks (e.g., Archery + Hunting in a bow hunting chain), a quest that exercises both can tag the secondary. Do NOT invent a secondary skill for a quality the quest incidentally requires (e.g., patience is not Meditation; cooking one meal is not Cooking unless the chain develops Cooking as its own track).
+
+Most quests should have ZERO secondary skills.
 
 ## Chain Scope
-Quest chains can and SHOULD span multiple skills and disciplines when the goal calls for it. A goal like "start a homestead" naturally involves Farming, Construction, Plumbing, Animal Care, Preservation, etc. across Nature, Craft, and Life disciplines. Do not artificially constrain a chain to a single skill or discipline.
+Quest chains can and SHOULD span multiple skills and disciplines when the goal calls for it. A goal like "start a homestead" naturally involves Farming, Construction, Animal Care, etc. across Nature, Craft, and Life disciplines. Do not artificially constrain a chain to a single skill or discipline.
 
-Classify the chain tier based on its scope:
-- common: 1 skill, 1 discipline (e.g., "Read a book this month")
-- uncommon: 2-3 skills, 1 discipline (e.g., "Learn to bake bread")
-- epic: 4+ skills or 2+ disciplines (e.g., "Learn to hunt")
-- legendary: 5+ skills across 3+ disciplines (e.g., "Start a homestead", "Build a cabin")`;
+Classify the chain tier based on ambition and scope. Tier reflects the scale of the journey, NOT skill count — never invent extra skills to justify a higher tier.
+- common: Small, short-term goal (e.g., "Read a book this month", "Organize my closet")
+- uncommon: Moderate goal requiring weeks of effort (e.g., "Learn to bake bread", "Run a 5K")
+- epic: Ambitious goal requiring months of sustained effort, even if it's primarily one skill (e.g., "Run a marathon", "Learn to hunt")
+- legendary: Major life goal spanning many months or years, typically crossing multiple disciplines (e.g., "Start a homestead", "Build a cabin", "Earn a black belt")
+
+## Difficulty Guidelines
+- Difficulty 1 (Trivial) should be rare — only for steps that genuinely take a few minutes. Most research or purchasing steps are at least difficulty 2.
+- Epic and legendary chains should have 1-3 difficulty 5 quests for the true climactic milestones in the final stretch.
+- Difficulty 5 means a single, hard-earned achievement (e.g., "Execute your first ethical shot on a deer", "Run your first marathon"). It does NOT mean bundling multiple steps together to make a quest sound harder. Keep quests atomic.
+- The difficulty 5 quest(s) should be the hardest or most meaningful moments in the chain, not wrap-up, celebration, or cool-down steps that follow the main achievement.`;
 }
 
 function checkAiPrerequisites<T>(userId: string): ActionResult<T> | null {
@@ -188,6 +268,34 @@ function handleAnthropicError<T>(err: unknown): ActionResult<T> {
   };
 }
 
+async function streamGeneratedChain(
+  client: Anthropic,
+  skillTree: string,
+  userContent: string,
+  parseErrorMessage: string
+): Promise<ActionResult<GeneratedChain>> {
+  const stream = client.messages.stream({
+    model: AI_MODEL,
+    max_tokens: 32000,
+    system: buildSystemPrompt(skillTree),
+    messages: [{ role: "user", content: userContent }],
+    output_config: {
+      format: zodOutputFormat(GeneratedChainSchema),
+    },
+  });
+
+  const response = await stream.finalMessage();
+
+  if (!response.parsed_output) {
+    return {
+      success: false,
+      error: parseErrorMessage,
+    };
+  }
+
+  return { success: true, data: response.parsed_output };
+}
+
 export async function generateQuestChain(
   goal: string
 ): Promise<ActionResult<GeneratedChain>> {
@@ -196,10 +304,10 @@ export async function generateQuestChain(
   if (!trimmed) {
     return { success: false, error: "Please describe your goal" };
   }
-  if (trimmed.length > 1000) {
+  if (trimmed.length > 2000) {
     return {
       success: false,
-      error: "Goal is too long. Keep it under 1000 characters.",
+      error: "Goal is too long. Keep it under 2,000 characters.",
     };
   }
 
@@ -210,32 +318,12 @@ export async function generateQuestChain(
     const skillTree = await getSkillTree(userId);
     const client = new Anthropic();
 
-    const stream = client.messages.stream({
-      model: "claude-opus-4-6",
-      max_tokens: 32000,
-      thinking: { type: "adaptive" },
-      system: buildSystemPrompt(skillTree),
-      messages: [
-        {
-          role: "user",
-          content: `Generate a quest chain for this goal: "${trimmed}"`,
-        },
-      ],
-      output_config: {
-        format: zodOutputFormat(GeneratedChainSchema),
-      },
-    });
-
-    const response = await stream.finalMessage();
-
-    if (!response.parsed_output) {
-      return {
-        success: false,
-        error: "Odin couldn't forge a valid chain. Try rephrasing your goal.",
-      };
-    }
-
-    return { success: true, data: response.parsed_output };
+    return await streamGeneratedChain(
+      client,
+      skillTree,
+      `Generate a quest chain for this goal: "${trimmed}"`,
+      "Odin couldn't forge a valid chain. Try rephrasing your goal."
+    );
   } catch (err) {
     return handleAnthropicError<GeneratedChain>(err);
   }
@@ -265,15 +353,10 @@ export async function refineQuestChain(
     const skillTree = await getSkillTree(userId);
     const client = new Anthropic();
 
-    const stream = client.messages.stream({
-      model: "claude-opus-4-6",
-      max_tokens: 32000,
-      thinking: { type: "adaptive" },
-      system: buildSystemPrompt(skillTree),
-      messages: [
-        {
-          role: "user",
-          content: `I already generated a quest chain for the goal: "${originalGoal.trim()}"
+    return await streamGeneratedChain(
+      client,
+      skillTree,
+      `I already generated a quest chain for the goal: "${originalGoal.trim()}"
 
 Here is the current chain:
 ${JSON.stringify(existingChain, null, 2)}
@@ -282,23 +365,8 @@ The user wants to refine this chain with the following feedback:
 "${trimmedRefinement}"
 
 Modify the chain to address this feedback. Preserve what is already good — only change, add, or remove quests as needed to incorporate the feedback. Return the full updated chain.`,
-        },
-      ],
-      output_config: {
-        format: zodOutputFormat(GeneratedChainSchema),
-      },
-    });
-
-    const response = await stream.finalMessage();
-
-    if (!response.parsed_output) {
-      return {
-        success: false,
-        error: "Odin couldn't refine the chain. Try rephrasing your feedback.",
-      };
-    }
-
-    return { success: true, data: response.parsed_output };
+      "Odin couldn't refine the chain. Try rephrasing your feedback."
+    );
   } catch (err) {
     return handleAnthropicError<GeneratedChain>(err);
   }
@@ -317,11 +385,26 @@ export async function saveGeneratedChain(
     generated = parsed.data;
 
     type SkillTuple = { discipline: string; skillName: string; specializationName?: string };
-    const tuples: SkillTuple[] = generated.quests.map((q) => ({
-      discipline: q.discipline,
-      skillName: q.skillName.trim(),
-      specializationName: q.specializationName?.trim() || undefined,
-    }));
+    const tuples: SkillTuple[] = [];
+    for (const q of generated.quests) {
+      const primaryName = q.skillName.trim();
+      if (primaryName) {
+        tuples.push({
+          discipline: q.discipline,
+          skillName: primaryName,
+          specializationName: q.specializationName?.trim() || undefined,
+        });
+      }
+      for (const sec of q.secondarySkills ?? []) {
+        const secName = sec.skillName.trim();
+        if (!secName) continue;
+        tuples.push({
+          discipline: sec.discipline,
+          skillName: secName,
+          specializationName: sec.specializationName?.trim() || undefined,
+        });
+      }
+    }
 
     const skillMap = new Map<string, { id: string; name: string; discipline: string }>();
     const specMap = new Map<string, { id: string; name: string; parentId: string }>();
@@ -390,18 +473,21 @@ export async function saveGeneratedChain(
     for (let i = 0; i < generated.quests.length; i++) {
       const q = generated.quests[i];
       const difficulty = Math.max(1, Math.min(5, Math.round(q.difficulty)));
-      const parentSkill = skillMap.get(q.skillName.trim().toLowerCase());
+      const primaryTrim = q.skillName.trim();
+      const parentSkill = primaryTrim ? skillMap.get(primaryTrim.toLowerCase()) : undefined;
 
       let linkSkillId: string | null = null;
-      if (q.specializationName?.trim() && parentSkill) {
-        const specKey = `${parentSkill.id}::${q.specializationName.trim().toLowerCase()}`;
-        const spec = specMap.get(specKey);
-        linkSkillId = spec?.id ?? parentSkill.id;
-      } else if (parentSkill) {
-        linkSkillId = parentSkill.id;
+      if (primaryTrim && parentSkill) {
+        if (q.specializationName?.trim()) {
+          const specKey = `${parentSkill.id}::${q.specializationName.trim().toLowerCase()}`;
+          const spec = specMap.get(specKey);
+          linkSkillId = spec?.id ?? parentSkill.id;
+        } else {
+          linkSkillId = parentSkill.id;
+        }
       }
 
-      await db.quest.create({
+      const quest = await db.quest.create({
         data: {
           userId,
           title: q.title.trim(),
@@ -414,6 +500,24 @@ export async function saveGeneratedChain(
           skillId: linkSkillId,
         },
       });
+
+      for (const sec of q.secondarySkills ?? []) {
+        const secTrim = sec.skillName.trim();
+        if (!secTrim) continue;
+        const secParent = skillMap.get(secTrim.toLowerCase());
+        if (!secParent) continue;
+        let secSkillId = secParent.id;
+        if (sec.specializationName?.trim()) {
+          const secSpecKey = `${secParent.id}::${sec.specializationName.trim().toLowerCase()}`;
+          const secSpec = specMap.get(secSpecKey);
+          if (secSpec) secSkillId = secSpec.id;
+        }
+        if (secSkillId !== linkSkillId) {
+          await db.questSkill.create({
+            data: { questId: quest.id, skillId: secSkillId },
+          });
+        }
+      }
     }
 
     revalidateApp(`/chains/${chain.id}`);

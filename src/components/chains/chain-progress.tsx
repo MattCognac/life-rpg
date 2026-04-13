@@ -65,7 +65,7 @@ export function ChainProgress({ quests }: Props) {
               <Link href={`/quests/${quest.id}`} className="absolute inset-0 z-10" />
               <div
                 className={cn(
-                  "norse-card p-4 transition-all cursor-pointer relative z-20 pointer-events-none [&_button]:pointer-events-auto [&_button]:relative [&_button]:z-30",
+                  "norse-card p-4 transition-colors cursor-pointer relative z-20 pointer-events-none [&_button]:pointer-events-auto [&_button]:relative [&_button]:z-30",
                   isLocked && "opacity-50",
                   isCompleted && "border-success/30",
                   isActive && "border-primary/40"

@@ -118,9 +118,8 @@ export function ChainMenu({ id, name, questCount, completedCount }: Props) {
               </li>
             </ul>
             <p className="text-muted-foreground pt-1">
-              Skills linked to these quests will{" "}
-              <span className="text-foreground">not</span> be deleted — they may
-              be used by other quests.
+              Skills only used by this chain&apos;s quests will be removed.
+              Skills shared with other quests will be kept.
             </p>
             <p className="text-destructive pt-2 font-display text-xs tracking-widest uppercase">
               This cannot be undone.

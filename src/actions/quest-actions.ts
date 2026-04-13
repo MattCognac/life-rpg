@@ -17,7 +17,12 @@ import { startOfToday } from "@/lib/utils";
 import { cleanupOrphanedSkill, propagateXpToParent } from "@/actions/skill-actions";
 import { CHAIN_TIER_BONUS, type ChainTier } from "@/lib/disciplines";
 import { revalidateApp } from "@/lib/revalidate";
-import { refundCharacterXp, refundSkillXp } from "@/lib/xp-operations";
+import {
+  refundCharacterXp,
+  refundSkillXp,
+  awardSecondarySkillXp,
+  refundSecondarySkillXp,
+} from "@/lib/xp-operations";
 import {
   CHARACTER_CLASSES,
   resolveClass,
@@ -183,6 +188,40 @@ async function deleteActivityForQuest(questId: string, userId: string): Promise<
   });
 }
 
+export async function updateQuestSecondarySkills(
+  questId: string,
+  skillIds: string[],
+): Promise<ActionResult> {
+  try {
+    const userId = await getAuthUser();
+    const quest = await db.quest.findFirst({ where: { id: questId, userId } });
+    if (!quest) return { success: false, error: "Quest not found" };
+
+    if (skillIds.length > 2) {
+      return { success: false, error: "Maximum 2 secondary skills" };
+    }
+
+    const primaryId = quest.skillId;
+    const filtered = skillIds.filter((id) => id !== primaryId);
+
+    for (const sid of filtered) {
+      const skill = await db.skill.findFirst({ where: { id: sid, userId } });
+      if (!skill) return { success: false, error: "Skill not found" };
+    }
+
+    await db.questSkill.deleteMany({ where: { questId } });
+    for (const sid of filtered) {
+      await db.questSkill.create({ data: { questId, skillId: sid } });
+    }
+
+    revalidateApp(`/quests/${questId}`);
+    return { success: true };
+  } catch (err) {
+    console.error("updateQuestSecondarySkills failed:", err);
+    return { success: false, error: "Failed to update secondary skills" };
+  }
+}
+
 export async function reconcileChainLocks(chainId: string, userId: string): Promise<void> {
   const quests = await db.quest.findMany({
     where: { chainId, userId },
@@ -225,6 +264,7 @@ export async function deleteQuest(id: string): Promise<ActionResult> {
         const charClass = character ? resolveClass(character.class) : "warrior";
         const pMult = CHARACTER_CLASSES[charClass].perk === "deep_craft" ? 2 : 1;
         await refundSkillXp(quest.skill.id, totalXpRefund, pMult);
+        await refundSecondarySkillXp(id, totalXpRefund, pMult);
       }
     }
 
@@ -365,6 +405,7 @@ export async function completeQuest(id: string): Promise<ActionResult> {
       });
       const propagationMultiplier = classDef.perk === "deep_craft" ? 2 : 1;
       await propagateXpToParent(quest.skill.id, xpToAward * propagationMultiplier);
+      await awardSecondarySkillXp(id, xpToAward, propagationMultiplier);
     }
 
     if (quest.chainId && quest.chainOrder != null) {
@@ -528,6 +569,7 @@ export async function undoDailyCompletion(id: string): Promise<ActionResult> {
         data: { totalXp: newSkillXp, level: newSkillLevel },
       });
       await propagateXpToParent(quest.skill.id, -todayCompletion.xpAwarded * pMult);
+      await refundSecondarySkillXp(id, todayCompletion.xpAwarded, pMult);
     }
 
     const streak = await db.dailyStreak.findUnique({
@@ -596,6 +638,7 @@ export async function uncompleteQuest(id: string): Promise<ActionResult> {
           data: { totalXp: newSkillXp, level: newSkillLevel },
         });
         await propagateXpToParent(quest.skill.id, -lastCompletion.xpAwarded * pMult);
+        await refundSecondarySkillXp(id, lastCompletion.xpAwarded, pMult);
       }
     }
 

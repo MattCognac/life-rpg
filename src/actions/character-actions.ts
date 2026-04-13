@@ -8,6 +8,16 @@ import { getCharacterForUser } from "@/lib/character";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 import { CHARACTER_CLASSES, type CharacterClass } from "@/lib/classes";
 
+export async function getClassName(): Promise<string> {
+  const userId = await getAuthUser();
+  const character = await getCharacterForUser(userId);
+  if (!character) return "warrior";
+  const key = character.class in CHARACTER_CLASSES
+    ? (character.class as CharacterClass)
+    : "warrior";
+  return CHARACTER_CLASSES[key].name;
+}
+
 export async function renameCharacter(name: string): Promise<ActionResult> {
   try {
     const userId = await getAuthUser();

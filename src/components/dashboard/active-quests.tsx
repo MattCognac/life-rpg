@@ -2,10 +2,8 @@ import Link from "next/link";
 import { DifficultyStars } from "@/components/quests/difficulty-stars";
 import { CompleteQuestButton } from "@/components/quests/complete-quest-button";
 import { AIChainGenerator } from "@/components/chains/ai-chain-generator";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Swords, Plus, Sparkles, ArrowRight, Link2, Zap, Sun } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface Quest {
   id: string;
@@ -15,7 +13,6 @@ interface Quest {
   xpReward: number;
   status: string;
   isDaily: boolean;
-  skill?: { id: string; name: string; color: string } | null;
   chain?: {
     id: string;
     name: string;
@@ -29,7 +26,7 @@ interface Props {
 
 export function ActiveQuests({ quests }: Props) {
   return (
-    <div className="norse-card p-5 w-full flex flex-col">
+    <div className="norse-card p-5 w-full h-full min-h-0 flex flex-col">
       <div className="flex items-center justify-between pb-5 border-b border-border/50">
         <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground">
           Active Quests
@@ -52,7 +49,7 @@ export function ActiveQuests({ quests }: Props) {
         )}
       </div>
 
-      <div className="flex-1 pt-2">
+      <div className="flex-1 min-h-0 pt-2 overflow-y-auto">
         {quests.length === 0 ? (
           <div className="py-6 flex flex-col items-center gap-4 text-center">
             <Swords className="w-8 h-8 text-muted-foreground" />
@@ -78,22 +75,20 @@ export function ActiveQuests({ quests }: Props) {
           <div className="divide-y divide-border/50">
             {quests.map((quest) => (
               <div key={quest.id} className="py-2.5">
+                {quest.chain && (
+                  <div className="flex items-center gap-1.5 mb-1 text-[10px] font-display uppercase tracking-widest text-muted-foreground">
+                    <Link2 className="w-3 h-3 flex-shrink-0" />
+                    <Link
+                      href={`/chains/${quest.chain.id}`}
+                      className="hover:text-primary transition-colors truncate min-w-0"
+                    >
+                      {quest.chain.name} ({quest.chain.quests.filter((q) => q.status === "completed").length}/{quest.chain.quests.length})
+                    </Link>
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     {quest.isDaily && <Sun className="w-3 h-3 text-gold flex-shrink-0" />}
-                    {quest.skill && (
-                      <Badge
-                        variant="outline"
-                        className="flex-shrink-0"
-                        style={{
-                          borderColor: `${quest.skill.color}80`,
-                          color: quest.skill.color,
-                          backgroundColor: `${quest.skill.color}10`,
-                        }}
-                      >
-                        {quest.skill.name}
-                      </Badge>
-                    )}
                     <Link
                       href={`/quests/${quest.id}`}
                       className="font-display text-sm tracking-wider uppercase truncate hover:text-primary transition-colors"
@@ -110,17 +105,6 @@ export function ActiveQuests({ quests }: Props) {
                     <CompleteQuestButton questId={quest.id} size="icon" />
                   </div>
                 </div>
-                {quest.chain && (
-                  <div className="flex items-center gap-1.5 mt-1 pl-0 text-[10px] font-display uppercase tracking-widest text-muted-foreground">
-                    <Link2 className="w-3 h-3" />
-                    <Link
-                      href={`/chains/${quest.chain.id}`}
-                      className="hover:text-primary transition-colors"
-                    >
-                      {quest.chain.name} ({quest.chain.quests.filter((q) => q.status === "completed").length}/{quest.chain.quests.length})
-                    </Link>
-                  </div>
-                )}
               </div>
             ))}
           </div>

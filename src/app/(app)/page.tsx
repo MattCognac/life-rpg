@@ -72,7 +72,6 @@ export default async function DashboardPage() {
     db.quest.findMany({
       where: { userId, status: "active", isDaily: false },
       include: {
-        skill: { include: { parent: { select: { name: true } } } },
         chain: {
           include: { quests: { select: { status: true } } },
         },
@@ -199,11 +198,11 @@ export default async function DashboardPage() {
       </div>
 
       {/* Active Quests + Dailies */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div data-tutorial="quests" className="lg:col-span-2 flex">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch max-h-[min(75vh,38rem)] min-h-0">
+        <div data-tutorial="quests" className="lg:col-span-2 flex min-h-0 min-w-0 w-full">
           <ActiveQuests quests={activeQuests} />
         </div>
-        <div data-tutorial="dailies">
+        <div data-tutorial="dailies" className="flex min-h-0 min-w-0 w-full">
           <DailiesBlock
             dailies={activeDailies.slice(0, 6).map((q) => ({
               quest: q,
@@ -216,14 +215,14 @@ export default async function DashboardPage() {
       </div>
 
       {/* XP Chart + Skills */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="norse-card p-5 lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch max-h-[min(75vh,38rem)] min-h-0">
+        <div className="norse-card p-5 lg:col-span-2 min-h-0 overflow-y-auto">
           <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground mb-4">
             XP Earned — Last 30 Days
           </h2>
           <XpChart data={xpHistory} />
         </div>
-        <div data-tutorial="skills" className="norse-card p-5 h-fit">
+        <div data-tutorial="skills" className="norse-card p-5 min-h-0 overflow-y-auto">
           <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground mb-4">
             Discipline Mastery
           </h2>
@@ -232,8 +231,8 @@ export default async function DashboardPage() {
       </div>
 
       {/* Recent Achievements + Activity Log */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="norse-card p-5 lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch max-h-[min(75vh,38rem)] min-h-0">
+        <div className="norse-card p-5 lg:col-span-2 min-h-0 overflow-y-auto">
           <div className="flex items-baseline justify-between mb-4">
             <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground">
               Recent Achievements
@@ -260,7 +259,7 @@ export default async function DashboardPage() {
             </div>
           )}
         </div>
-        <div className="norse-card p-5">
+        <div className="norse-card p-5 min-h-0 overflow-y-auto">
           <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground mb-4">
             Activity Log
           </h2>

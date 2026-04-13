@@ -14,7 +14,10 @@ export default async function EditQuestPage({
   const { id } = await params;
   const userId = await getAuthUser();
   const [quest, skills] = await Promise.all([
-    db.quest.findFirst({ where: { id, userId } }),
+    db.quest.findFirst({
+      where: { id, userId },
+      include: { secondarySkills: true },
+    }),
     db.skill.findMany({
       where: { userId, parentId: null },
       include: { children: { orderBy: { name: "asc" } } },
@@ -47,6 +50,7 @@ export default async function EditQuestPage({
             difficulty: quest.difficulty,
             xpReward: quest.xpReward,
             skillId: quest.skillId,
+            secondarySkillIds: quest.secondarySkills.map((qs) => qs.skillId),
           }}
         />
       </div>

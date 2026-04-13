@@ -19,12 +19,12 @@ import { DIFFICULTY_LABELS, DIFFICULTY_COLORS } from "@/lib/constants";
 import { XP_BY_DIFFICULTY } from "@/lib/xp";
 import { DISCIPLINES } from "@/lib/disciplines";
 import { getChainTier } from "@/lib/disciplines";
-import { createQuest, updateQuest } from "@/actions/quest-actions";
+import { createQuest, updateQuest, updateQuestSecondarySkills } from "@/actions/quest-actions";
 import { handleActionResult } from "@/components/shared/action-handler";
 import { toast } from "@/components/shared/toaster";
 import { isDailyActiveToday, nextActiveLabel, scheduleLabel } from "@/lib/daily";
 import { cn } from "@/lib/utils";
-import { Check, Swords, Zap, Plus } from "lucide-react";
+import { Check, Swords, Zap, Plus, X } from "lucide-react";
 import { SkillForm } from "@/components/skills/skill-form";
 
 interface Skill {
@@ -55,6 +55,7 @@ interface Props {
     difficulty: number;
     xpReward: number;
     skillId: string | null;
+    secondarySkillIds?: string[];
   };
   onDone?: () => void;
 }
@@ -74,6 +75,9 @@ export function QuestForm({
   const [description, setDescription] = useState(quest?.description ?? "");
   const [difficulty, setDifficulty] = useState(quest?.difficulty ?? 2);
   const [skillId, setSkillId] = useState<string>(quest?.skillId ?? "none");
+  const [secondarySkillIds, setSecondarySkillIds] = useState<string[]>(
+    quest?.secondarySkillIds ?? []
+  );
   const [chainId, setChainId] = useState<string>(defaultChainId ?? "none");
   const [isDaily, setIsDaily] = useState(defaultIsDaily ?? false);
   const [dailyCron, setDailyCron] = useState<string>("daily");
@@ -92,6 +96,17 @@ export function QuestForm({
     [skills]
   );
 
+  const allSkillsFlat = useMemo(() => {
+    const flat: Array<{ id: string; name: string; color: string; parentName?: string }> = [];
+    for (const s of skills) {
+      flat.push({ id: s.id, name: s.name, color: s.color });
+      for (const child of s.children ?? []) {
+        flat.push({ id: child.id, name: child.name, color: child.color, parentName: s.name });
+      }
+    }
+    return flat;
+  }, [skills]);
+
   const onSubmit = () => {
     if (!title.trim()) return;
     startTransition(async () => {
@@ -106,15 +121,25 @@ export function QuestForm({
         isDaily,
         dailyCron: isDaily ? dailyCron : null,
       };
-      const result = quest
-        ? await updateQuest(quest.id, {
-            title,
-            description,
-            difficulty,
-            xpReward,
-            skillId: skillId === "none" ? null : skillId,
-          })
-        : await createQuest(input);
+      let result;
+      if (quest) {
+        result = await updateQuest(quest.id, {
+          title,
+          description,
+          difficulty,
+          xpReward,
+          skillId: skillId === "none" ? null : skillId,
+        });
+        if (result.success) {
+          const secResult = await updateQuestSecondarySkills(quest.id, secondarySkillIds);
+          if (!secResult.success) {
+            handleActionResult(secResult);
+            return;
+          }
+        }
+      } else {
+        result = await createQuest(input);
+      }
       handleActionResult(result);
       if (result.success) {
         if (!quest && isDaily && !isDailyActiveToday(dailyCron)) {
@@ -263,6 +288,76 @@ export function QuestForm({
           </SelectContent>
         </Select>
       </div>
+
+      {quest && skillId !== "none" && (
+        <div>
+          <Label>Secondary Skills <span className="text-muted-foreground font-body text-xs font-normal">(+50% XP, optional)</span></Label>
+          <div className="mt-1.5 space-y-2">
+            {secondarySkillIds.map((secId) => {
+              const s = allSkillsFlat.find((sk) => sk.id === secId);
+              if (!s) return null;
+              return (
+                <div key={secId} className="flex items-center gap-2 px-3 py-1.5 border border-border bg-card text-sm">
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: s.color }}
+                  />
+                  <span className="font-display text-xs tracking-wider uppercase flex-1">
+                    {s.parentName ? `${s.parentName} › ${s.name}` : s.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSecondarySkillIds((ids) => ids.filter((i) => i !== secId))}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+            {secondarySkillIds.length < 2 && (
+              <Select
+                value=""
+                onValueChange={(v) => {
+                  if (v && v !== skillId && !secondarySkillIds.includes(v)) {
+                    setSecondarySkillIds((ids) => [...ids, v]);
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Add secondary skill..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {skillsByDiscipline.map(({ discipline, skills: discSkills }) => (
+                    <SelectGroup key={discipline.slug}>
+                      <SelectLabel
+                        className="text-[10px] font-display uppercase tracking-widest"
+                        style={{ color: discipline.color }}
+                      >
+                        {discipline.name}
+                      </SelectLabel>
+                      {discSkills.map((s) => (
+                        <div key={s.id}>
+                          {s.id !== skillId && !secondarySkillIds.includes(s.id) && (
+                            <SelectItem value={s.id}>{s.name}</SelectItem>
+                          )}
+                          {s.children?.map((child) =>
+                            child.id !== skillId && !secondarySkillIds.includes(child.id) ? (
+                              <SelectItem key={child.id} value={child.id}>
+                                &nbsp;&nbsp;↳ {child.name}
+                              </SelectItem>
+                            ) : null
+                          )}
+                        </div>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </div>
+      )}
 
       {chains && chains.length > 0 && !quest && !defaultIsDaily && (
         <div>

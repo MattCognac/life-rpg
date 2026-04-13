@@ -74,3 +74,63 @@ export async function refundSkillXp(skillId: string, xpAmount: number, propagati
   await propagateXpToParent(skillId, -xpAmount * propagationMultiplier);
 }
 
+const SECONDARY_XP_RATIO = 0.5;
+
+/**
+ * Award XP to a quest's secondary skills (50% of the primary award).
+ * Also propagates to each secondary skill's parent.
+ */
+export async function awardSecondarySkillXp(
+  questId: string,
+  xpToAward: number,
+  propagationMultiplier = 1,
+): Promise<void> {
+  const secondaryXp = Math.round(xpToAward * SECONDARY_XP_RATIO);
+  if (secondaryXp <= 0) return;
+
+  const links = await db.questSkill.findMany({
+    where: { questId },
+    include: { skill: true },
+  });
+
+  for (const link of links) {
+    const skill = link.skill;
+    const newTotal = skill.totalXp + secondaryXp;
+    const { level: newLevel } = computeLevel(newTotal);
+    await db.skill.update({
+      where: { id: skill.id },
+      data: { totalXp: newTotal, level: newLevel },
+    });
+    await propagateXpToParent(skill.id, secondaryXp * propagationMultiplier);
+  }
+}
+
+/**
+ * Refund XP from a quest's secondary skills (50% of the refund amount).
+ * Also propagates the refund to each secondary skill's parent.
+ */
+export async function refundSecondarySkillXp(
+  questId: string,
+  xpAmount: number,
+  propagationMultiplier = 1,
+): Promise<void> {
+  const secondaryXp = Math.round(xpAmount * SECONDARY_XP_RATIO);
+  if (secondaryXp <= 0) return;
+
+  const links = await db.questSkill.findMany({
+    where: { questId },
+    include: { skill: true },
+  });
+
+  for (const link of links) {
+    const skill = link.skill;
+    const newTotal = Math.max(0, skill.totalXp - secondaryXp);
+    const { level: newLevel } = computeLevel(newTotal);
+    await db.skill.update({
+      where: { id: skill.id },
+      data: { totalXp: newTotal, level: newLevel },
+    });
+    await propagateXpToParent(skill.id, -secondaryXp * propagationMultiplier);
+  }
+}
+

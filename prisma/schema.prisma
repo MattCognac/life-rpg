@@ -35,9 +35,10 @@ model Skill {
   parent   Skill?  @relation("SkillTree", fields: [parentId], references: [id], onDelete: SetNull)
   children Skill[] @relation("SkillTree")
 
-  quests    Quest[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  quests          Quest[]
+  secondaryQuests QuestSkill[] @relation("SecondarySkills")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   @@unique([userId, name])
   @@index([userId])
@@ -64,7 +65,8 @@ model Quest {
   chain      QuestChain? @relation(fields: [chainId], references: [id], onDelete: SetNull)
   chainOrder Int?
 
-  completions QuestCompletion[]
+  completions     QuestCompletion[]
+  secondarySkills QuestSkill[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -72,6 +74,18 @@ model Quest {
   @@index([userId])
   @@index([status])
   @@index([chainId, chainOrder])
+}
+
+model QuestSkill {
+  id      String @id @default(cuid())
+  questId String
+  quest   Quest  @relation(fields: [questId], references: [id], onDelete: Cascade)
+  skillId String
+  skill   Skill  @relation("SecondarySkills", fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([questId, skillId])
+  @@index([questId])
+  @@index([skillId])
 }
 
 model QuestChain {

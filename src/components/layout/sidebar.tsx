@@ -60,59 +60,60 @@ export function Sidebar() {
         </div>
       </Link>
 
-      <nav data-tutorial="sidebar-nav" className="flex-1 py-4 px-3 space-y-0.5">
-        {navItems.map((item, i) => {
-          if (!isLink(item)) {
+      <div data-tutorial="sidebar-nav" className="flex-1 flex flex-col min-h-0">
+        <nav className="flex-1 py-4 px-3 space-y-0.5">
+          {navItems.map((item, i) => {
+            if (!isLink(item)) {
+              return (
+                <div
+                  key={item.label}
+                  className={cn(
+                    "px-3 pt-5 pb-2 text-[9px] font-display uppercase tracking-[0.3em] text-muted-foreground/60",
+                    i === 0 && "pt-2"
+                  )}
+                >
+                  {item.label}
+                </div>
+              );
+            }
+
+            const Icon = item.icon;
+            const active =
+              item.href === "/"
+                ? pathname === "/"
+                : item.href === "/character"
+                  ? pathname.startsWith("/character") || pathname.startsWith("/skills")
+                  : pathname.startsWith(item.href);
+
             return (
-              <div
-                key={item.label}
+              <a
+                key={item.href}
+                href={item.href}
+                data-tutorial={item.tutorialKey}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(item.href);
+                }}
                 className={cn(
-                  "px-3 pt-5 pb-2 text-[9px] font-display uppercase tracking-[0.3em] text-muted-foreground/60",
-                  i === 0 && "pt-2"
+                  "group relative flex items-center gap-3 px-3 py-2.5 font-display uppercase tracking-wider text-sm transition-all duration-200 border-l-2",
+                  active
+                    ? "text-primary bg-primary/10 border-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-card-hover border-transparent"
                 )}
               >
-                {item.label}
-              </div>
+                <Icon
+                  className={cn(
+                    "w-4 h-4",
+                    active && "drop-shadow-[0_0_4px_hsl(var(--primary))]"
+                  )}
+                />
+                <span>{item.label}</span>
+              </a>
             );
-          }
+          })}
+        </nav>
 
-          const Icon = item.icon;
-          const active =
-            item.href === "/"
-              ? pathname === "/"
-              : item.href === "/character"
-                ? pathname.startsWith("/character") || pathname.startsWith("/skills")
-                : pathname.startsWith(item.href);
-
-          return (
-            <a
-              key={item.href}
-              href={item.href}
-              data-tutorial={item.tutorialKey}
-              onClick={(e) => {
-                e.preventDefault();
-                navigate(item.href);
-              }}
-              className={cn(
-                "group relative flex items-center gap-3 px-3 py-2.5 font-display uppercase tracking-wider text-sm transition-all duration-200 border-l-2",
-                active
-                  ? "text-primary bg-primary/10 border-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-card-hover border-transparent"
-              )}
-            >
-              <Icon
-                className={cn(
-                  "w-4 h-4",
-                  active && "drop-shadow-[0_0_4px_hsl(var(--primary))]"
-                )}
-              />
-              <span>{item.label}</span>
-            </a>
-          );
-        })}
-      </nav>
-
-      <div className="px-3 pb-1 space-y-0.5">
+        <div className="px-3 pb-1 space-y-0.5">
         <a
           href="/settings"
           onClick={(e) => {
@@ -136,6 +137,7 @@ export function Sidebar() {
           <LogOut className="w-4 h-4" />
           <span>Logout</span>
         </button>
+        </div>
       </div>
 
       <div className="px-3 py-3 border-t border-border">
