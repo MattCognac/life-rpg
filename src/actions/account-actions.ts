@@ -9,6 +9,13 @@ export async function deleteAccount(): Promise<ActionResult> {
   try {
     const userId = await getAuthUser();
 
+    const admin = createAdminClient();
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error) {
+      console.error("Supabase admin deleteUser failed:", error);
+      return { success: false, error: "Failed to delete account" };
+    }
+
     await db.$transaction([
       db.activityLog.deleteMany({ where: { userId } }),
       db.achievement.deleteMany({ where: { userId } }),
@@ -19,13 +26,6 @@ export async function deleteAccount(): Promise<ActionResult> {
       db.skill.deleteMany({ where: { userId } }),
       db.character.deleteMany({ where: { userId } }),
     ]);
-
-    const admin = createAdminClient();
-    const { error } = await admin.auth.admin.deleteUser(userId);
-    if (error) {
-      console.error("Supabase admin deleteUser failed:", error);
-      return { success: false, error: "Failed to remove auth account" };
-    }
 
     return { success: true };
   } catch (err) {
