@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,24 +9,29 @@ import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { DIFFICULTY_LABELS, DIFFICULTY_COLORS } from "@/lib/constants";
 import { XP_BY_DIFFICULTY } from "@/lib/xp";
+import { DISCIPLINES } from "@/lib/disciplines";
+import { getChainTier } from "@/lib/disciplines";
 import { createQuest, updateQuest } from "@/actions/quest-actions";
 import { handleActionResult } from "@/components/shared/action-handler";
 import { toast } from "@/components/shared/toaster";
 import { isDailyActiveToday, nextActiveLabel, scheduleLabel } from "@/lib/daily";
 import { cn } from "@/lib/utils";
-import { Check, Swords, Zap } from "lucide-react";
+import { Check, Swords, Zap, Plus } from "lucide-react";
+import { SkillForm } from "@/components/skills/skill-form";
 
 interface Skill {
   id: string;
   name: string;
   color: string;
-  realm?: string | null;
+  discipline?: string | null;
   parentId?: string | null;
   children?: Array<{ id: string; name: string; color: string }>;
 }
@@ -34,6 +39,7 @@ interface Skill {
 interface Chain {
   id: string;
   name: string;
+  tier?: string;
 }
 
 interface Props {
@@ -74,7 +80,20 @@ export function QuestForm({
 
   const xpReward = XP_BY_DIFFICULTY[difficulty];
 
+  const skillsByDiscipline = useMemo(() => {
+    return DISCIPLINES.map((disc) => ({
+      discipline: disc,
+      skills: skills.filter((s) => s.discipline === disc.slug),
+    })).filter((g) => g.skills.length > 0);
+  }, [skills]);
+
+  const ungroupedSkills = useMemo(
+    () => skills.filter((s) => !s.discipline),
+    [skills]
+  );
+
   const onSubmit = () => {
+    if (!title.trim()) return;
     startTransition(async () => {
       const input = {
         title,
@@ -179,25 +198,68 @@ export function QuestForm({
       </div>
 
       <div>
-        <Label htmlFor="skill">Skill</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="skill">Skill (optional)</Label>
+          <SkillForm
+            trigger={
+              <button
+                type="button"
+                className="text-[10px] font-display uppercase tracking-widest text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+              >
+                <Plus className="w-3 h-3" />
+                New Skill
+              </button>
+            }
+            onCreated={(id) => setSkillId(id)}
+          />
+        </div>
         <Select value={skillId} onValueChange={setSkillId}>
           <SelectTrigger className="mt-1.5">
-            <SelectValue placeholder="Choose skill" />
+            <SelectValue placeholder="No skill" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">No skill</SelectItem>
-            {skills.map((s) => (
-              <div key={s.id}>
-                <SelectItem value={s.id}>
-                  {s.name}
-                </SelectItem>
-                {s.children?.map((child) => (
-                  <SelectItem key={child.id} value={child.id}>
-                    &nbsp;&nbsp;↳ {child.name}
-                  </SelectItem>
+            {skillsByDiscipline.map(({ discipline, skills: discSkills }) => (
+              <SelectGroup key={discipline.slug}>
+                <SelectLabel
+                  className="text-[10px] font-display uppercase tracking-widest"
+                  style={{ color: discipline.color }}
+                >
+                  {discipline.name}
+                </SelectLabel>
+                {discSkills.map((s) => (
+                  <div key={s.id}>
+                    <SelectItem value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                    {s.children?.map((child) => (
+                      <SelectItem key={child.id} value={child.id}>
+                        &nbsp;&nbsp;↳ {child.name}
+                      </SelectItem>
+                    ))}
+                  </div>
                 ))}
-              </div>
+              </SelectGroup>
             ))}
+            {ungroupedSkills.length > 0 && (
+              <SelectGroup>
+                <SelectLabel className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">
+                  Other
+                </SelectLabel>
+                {ungroupedSkills.map((s) => (
+                  <div key={s.id}>
+                    <SelectItem value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                    {s.children?.map((child) => (
+                      <SelectItem key={child.id} value={child.id}>
+                        &nbsp;&nbsp;↳ {child.name}
+                      </SelectItem>
+                    ))}
+                  </div>
+                ))}
+              </SelectGroup>
+            )}
           </SelectContent>
         </Select>
       </div>
@@ -211,17 +273,44 @@ export function QuestForm({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Standalone quest</SelectItem>
-              {chains.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
+              {chains.map((c) => {
+                const tier = c.tier ? getChainTier(c.tier) : null;
+                return (
+                  <SelectItem key={c.id} value={c.id}>
+                    <span className="flex items-center gap-2">
+                      {tier && tier.slug !== "common" && (
+                        <span
+                          className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: tier.color }}
+                        />
+                      )}
+                      {c.name}
+                    </span>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
       )}
 
-      {!quest && (
+      {!quest && defaultIsDaily && (
+        <div>
+          <Label>Schedule</Label>
+          <Select value={dailyCron} onValueChange={setDailyCron}>
+            <SelectTrigger className="mt-1.5">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="daily">Every day</SelectItem>
+              <SelectItem value="weekdays">Weekdays only</SelectItem>
+              <SelectItem value="weekends">Weekends only</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {!quest && !defaultIsDaily && (
         <div
           className={cn(
             "flex items-start gap-3 p-3 border bg-card/50 cursor-pointer transition-all duration-300",
@@ -286,7 +375,13 @@ export function QuestForm({
           </Button>
         )}
         <Button onClick={onSubmit} disabled={isPending || !title.trim()}>
-          {isPending ? "Saving..." : quest ? "Save" : "Create Quest"}
+          {isPending
+            ? "Saving..."
+            : quest
+              ? "Save"
+              : defaultIsDaily
+                ? "Create Daily"
+                : "Create Quest"}
         </Button>
       </div>
     </div>

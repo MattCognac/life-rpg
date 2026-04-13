@@ -5,7 +5,7 @@ import { AddQuestToChain } from "@/components/chains/add-quest-to-chain";
 import { ChainMenu } from "@/components/chains/chain-menu";
 import { BackButton } from "@/components/ui/back-button";
 import { Badge } from "@/components/ui/badge";
-import { getChainTier } from "@/lib/realms";
+import { getChainTier } from "@/lib/disciplines";
 import { Link2, Check } from "lucide-react";
 
 export const dynamic = "force-dynamic";

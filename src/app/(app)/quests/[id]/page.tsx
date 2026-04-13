@@ -39,7 +39,7 @@ export default async function QuestDetailPage({
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <BackButton label="Quests" fallbackHref="/quests" />
+      <BackButton label="Back" fallbackHref="/quests" />
 
       <div className="norse-card p-6">
         <div className="flex flex-wrap items-center gap-2 mb-3">

@@ -21,7 +21,7 @@ import type { GeneratedChain } from "@/actions/ai-actions";
 import { handleActionResult } from "@/components/shared/action-handler";
 import { Sparkles, Wand2, Zap, RotateCw, Check, PenLine } from "lucide-react";
 import { XP_BY_DIFFICULTY } from "@/lib/xp";
-import { getChainTier } from "@/lib/realms";
+import { getChainTier } from "@/lib/disciplines";
 
 const EXAMPLES = [
   {
@@ -304,8 +304,8 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <DifficultyStars difficulty={d} />
                           <Badge variant="outline" className="text-[9px]">
-                            {quest.disciplineName}
-                            {quest.skillName ? ` › ${quest.skillName}` : ""}
+                            {quest.skillName}
+                            {quest.specializationName ? ` › ${quest.specializationName}` : ""}
                           </Badge>
                         </div>
                       </div>

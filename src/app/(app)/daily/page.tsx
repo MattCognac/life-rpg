@@ -88,7 +88,7 @@ export default async function DailyPage({
             Show up each day. Build your streak. Reap the rewards.
           </p>
         </div>
-        <Link href="/quests/new">
+        <Link href="/daily/new">
           <Button variant="ghost">
             <Plus className="w-4 h-4" />
             New Daily
@@ -152,7 +152,7 @@ export default async function DailyPage({
               : "Daily quests reset each day and build streaks. Create one by making a new quest and toggling the daily option."
           }
           action={
-            <Link href="/quests/new">
+            <Link href="/daily/new">
               <Button variant="ghost">
                 <Plus className="w-4 h-4" />
                 Create Daily

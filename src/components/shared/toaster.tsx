@@ -42,7 +42,7 @@ export function Toaster() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
 
   return (
-    <div className="fixed top-20 right-4 z-50 flex flex-col gap-3 pointer-events-none max-w-sm">
+    <div className="fixed top-20 right-4 z-[100] flex flex-col gap-3 pointer-events-none max-w-sm">
       {toasts.map((t) => {
         const Icon =
           t.type === "achievement" ? Trophy : t.type === "level-up" ? Star : Zap;

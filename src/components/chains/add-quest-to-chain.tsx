@@ -23,7 +23,13 @@ import { Plus } from "lucide-react";
 interface Props {
   chainId: string;
   nextOrder: number;
-  skills: Array<{ id: string; name: string; color: string }>;
+  skills: Array<{
+    id: string;
+    name: string;
+    color: string;
+    discipline?: string | null;
+    children?: Array<{ id: string; name: string; color: string }>;
+  }>;
   questNames?: string[];
 }
 

@@ -30,7 +30,7 @@ model Skill {
   totalXp   Int      @default(0)
   level     Int      @default(1)
 
-  realm    String?
+  discipline String?
   parentId String?
   parent   Skill?  @relation("SkillTree", fields: [parentId], references: [id], onDelete: SetNull)
   children Skill[] @relation("SkillTree")
@@ -42,7 +42,7 @@ model Skill {
   @@unique([userId, name])
   @@index([userId])
   @@index([parentId])
-  @@index([userId, realm])
+  @@index([userId, discipline])
 }
 
 model Quest {

@@ -10,7 +10,7 @@ import {
 } from "recharts";
 
 interface Props {
-  data: Array<{ realm: string; level: number; color: string }>;
+  data: Array<{ discipline: string; level: number; color: string }>;
 }
 
 export function SkillRadar({ data }: Props) {
@@ -21,7 +21,7 @@ export function SkillRadar({ data }: Props) {
       <RadarChart data={data}>
         <PolarGrid stroke="#2a3030" />
         <PolarAngleAxis
-          dataKey="realm"
+          dataKey="discipline"
           tick={{
             fill: "#c4b99a",
             fontSize: 10,

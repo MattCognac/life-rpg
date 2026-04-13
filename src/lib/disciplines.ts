@@ -1,4 +1,4 @@
-export const REALMS = [
+export const DISCIPLINES = [
   { slug: "body", name: "Body", description: "Physical prowess & adventure", icon: "Sword", color: "#ad2817" },
   { slug: "mind", name: "Mind", description: "Knowledge, technology & communication", icon: "Brain", color: "#60a5fa" },
   { slug: "spirit", name: "Spirit", description: "Spirituality, mindfulness & inner growth", icon: "Sparkles", color: "#eab308" },
@@ -7,16 +7,16 @@ export const REALMS = [
   { slug: "life", name: "Life", description: "Home, health, livelihood & self", icon: "Heart", color: "#c084fc" },
 ] as const;
 
-export type RealmSlug = (typeof REALMS)[number]["slug"];
+export type DisciplineSlug = (typeof DISCIPLINES)[number]["slug"];
 
-export const REALM_SLUGS = REALMS.map((r) => r.slug) as [RealmSlug, ...RealmSlug[]];
+export const DISCIPLINE_SLUGS = DISCIPLINES.map((r) => r.slug) as [DisciplineSlug, ...DisciplineSlug[]];
 
-export function getRealmBySlug(slug: string) {
-  return REALMS.find((r) => r.slug === slug);
+export function getDisciplineBySlug(slug: string) {
+  return DISCIPLINES.find((r) => r.slug === slug);
 }
 
-export function isValidRealm(slug: string): slug is RealmSlug {
-  return REALMS.some((r) => r.slug === slug);
+export function isValidDiscipline(slug: string): slug is DisciplineSlug {
+  return DISCIPLINES.some((r) => r.slug === slug);
 }
 
 export const CHAIN_TIERS = [

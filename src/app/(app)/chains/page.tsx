@@ -1,11 +1,10 @@
-import Link from "next/link";
 import { db } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
 import { ChainCard } from "@/components/chains/chain-card";
+import { ChainForm } from "@/components/chains/chain-form";
 import { AIChainGenerator } from "@/components/chains/ai-chain-generator";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Button } from "@/components/ui/button";
-import { Link2, Plus } from "lucide-react";
+import { Link2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +28,7 @@ export default async function ChainsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/chains/new">
-            <Button variant="ghost">
-              <Plus className="w-4 h-4" />
-              New Chain
-            </Button>
-          </Link>
+          <ChainForm />
           <AIChainGenerator />
         </div>
       </div>
@@ -46,12 +40,7 @@ export default async function ChainsPage() {
           description="Chains are sequences of quests where completing one unlocks the next. Forge a quest chain from a big goal, or build one from scratch."
           action={
             <div className="flex items-center gap-2">
-              <Link href="/chains/new">
-                <Button variant="ghost">
-                  <Plus className="w-4 h-4" />
-                  New Chain
-                </Button>
-              </Link>
+              <ChainForm />
               <AIChainGenerator />
             </div>
           }

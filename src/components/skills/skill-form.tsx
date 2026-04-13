@@ -22,7 +22,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SKILL_COLOR_PRESETS, SKILL_ICON_PRESETS } from "@/lib/constants";
-import { REALMS, type RealmSlug } from "@/lib/realms";
+import { DISCIPLINES, type DisciplineSlug } from "@/lib/disciplines";
 import { createSkill, updateSkill } from "@/actions/skill-actions";
 import { handleActionResult } from "@/components/shared/action-handler";
 import { cn } from "@/lib/utils";
@@ -33,10 +33,10 @@ function getIcon(name: string): LucideIcon {
   return icons[name] ?? LucideIcons.Sword;
 }
 
-interface Discipline {
+interface ExistingSkill {
   id: string;
   name: string;
-  realm: string | null;
+  discipline: string | null;
 }
 
 interface Props {
@@ -45,38 +45,41 @@ interface Props {
     name: string;
     icon: string;
     color: string;
-    realm?: string | null;
+    discipline?: string | null;
     parentId?: string | null;
   };
-  disciplines?: Discipline[];
+  skills?: ExistingSkill[];
   trigger?: React.ReactNode;
+  onCreated?: (id: string) => void;
+  addSpecTo?: { discipline: DisciplineSlug; skillName: string };
 }
 
-export function SkillForm({ skill, disciplines = [], trigger }: Props) {
+export function SkillForm({ skill, skills = [], trigger, onCreated, addSpecTo }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const isEditing = !!skill;
-  const [realm, setRealm] = useState<RealmSlug | "">(
-    (skill?.realm as RealmSlug) ?? ""
+  const isAddingSpec = !!addSpecTo;
+  const [discipline, setDiscipline] = useState<DisciplineSlug | "">(
+    addSpecTo?.discipline ?? (skill?.discipline as DisciplineSlug) ?? ""
   );
-  const [disciplineName, setDisciplineName] = useState(
-    isEditing ? skill.name : ""
+  const [skillName, setSkillName] = useState(
+    addSpecTo?.skillName ?? (isEditing ? skill.name : "")
   );
-  const [subSkillName, setSubSkillName] = useState("");
+  const [specName, setSpecName] = useState("");
   const [icon, setIcon] = useState(skill?.icon ?? "Sword");
   const [color, setColor] = useState(skill?.color ?? SKILL_COLOR_PRESETS[0]);
 
-  const filteredDisciplines = useMemo(
-    () => (realm ? disciplines.filter((d) => d.realm === realm) : []),
-    [realm, disciplines]
+  const filteredSkills = useMemo(
+    () => (discipline ? skills.filter((s) => s.discipline === discipline) : []),
+    [discipline, skills]
   );
 
   const reset = () => {
-    setRealm("");
-    setDisciplineName("");
-    setSubSkillName("");
+    setDiscipline("");
+    setSkillName("");
+    setSpecName("");
     setIcon("Sword");
     setColor(SKILL_COLOR_PRESETS[0]);
   };
@@ -85,10 +88,10 @@ export function SkillForm({ skill, disciplines = [], trigger }: Props) {
     startTransition(async () => {
       if (isEditing) {
         const result = await updateSkill(skill.id, {
-          name: disciplineName,
+          name: skillName,
           icon,
           color,
-          ...(skill.parentId ? {} : { realm: realm || undefined }),
+          ...(skill.parentId ? {} : { discipline: discipline || undefined }),
         });
         handleActionResult(result);
         if (result.success) {
@@ -96,11 +99,11 @@ export function SkillForm({ skill, disciplines = [], trigger }: Props) {
           router.refresh();
         }
       } else {
-        if (!realm) return;
+        if (!discipline) return;
         const result = await createSkill({
-          realm,
-          disciplineName,
-          subSkillName: subSkillName || undefined,
+          discipline,
+          skillName,
+          specializationName: specName || undefined,
           icon,
           color,
         });
@@ -108,11 +111,55 @@ export function SkillForm({ skill, disciplines = [], trigger }: Props) {
         if (result.success) {
           setOpen(false);
           reset();
+          if (onCreated && result.data) onCreated(result.data.id);
           router.refresh();
         }
       }
     });
   };
+
+  const disciplinePicker = (
+    <div>
+      <Label>Discipline</Label>
+      <TooltipProvider delayDuration={300}>
+        <div className="mt-1.5 grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {DISCIPLINES.map((d) => {
+            const I = getIcon(d.icon);
+            return (
+              <Tooltip key={d.slug}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setDiscipline(d.slug)}
+                    className={cn(
+                      "py-2.5 border flex flex-col items-center gap-1.5 transition-all",
+                      discipline === d.slug
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-card hover:border-primary/50"
+                    )}
+                  >
+                    <I
+                      className="w-4 h-4"
+                      style={{ color: d.color }}
+                    />
+                    <span
+                      className="text-[9px] font-display uppercase tracking-widest"
+                      style={{ color: discipline === d.slug ? d.color : undefined }}
+                    >
+                      {d.name}
+                    </span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {d.description}
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
+      </TooltipProvider>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -120,135 +167,61 @@ export function SkillForm({ skill, disciplines = [], trigger }: Props) {
         {trigger ?? (
           <Button variant="ghost">
             <Plus className="w-4 h-4" />
-            New Discipline
+            New Skill
           </Button>
         )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? "Edit Skill" : "Forge New Discipline"}
+            {isEditing ? "Edit Skill" : isAddingSpec ? "New Specialization" : "Forge New Skill"}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {!isEditing && (
-            <div>
-              <Label>Realm</Label>
-              <TooltipProvider delayDuration={300}>
-                <div className="mt-1.5 grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {REALMS.map((r) => {
-                    const I = getIcon(r.icon);
-                    return (
-                      <Tooltip key={r.slug}>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={() => setRealm(r.slug)}
-                            className={cn(
-                              "py-2.5 border flex flex-col items-center gap-1.5 transition-all",
-                              realm === r.slug
-                                ? "border-primary bg-primary/10"
-                                : "border-border bg-card hover:border-primary/50"
-                            )}
-                          >
-                            <I
-                              className="w-4 h-4"
-                              style={{ color: r.color }}
-                            />
-                            <span
-                              className="text-[9px] font-display uppercase tracking-widest"
-                              style={{ color: realm === r.slug ? r.color : undefined }}
-                            >
-                              {r.name}
-                            </span>
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom">
-                          {r.description}
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })}
-                </div>
-              </TooltipProvider>
-            </div>
-          )}
+          {!isEditing && !isAddingSpec && disciplinePicker}
+          {(isEditing && !skill.parentId) && disciplinePicker}
 
-          {(isEditing && !skill.parentId) && (
+          {!isAddingSpec && (
             <div>
-              <Label>Realm</Label>
-              <TooltipProvider delayDuration={300}>
-                <div className="mt-1.5 grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {REALMS.map((r) => {
-                    const I = getIcon(r.icon);
-                    return (
-                      <Tooltip key={r.slug}>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={() => setRealm(r.slug)}
-                            className={cn(
-                              "py-2.5 border flex flex-col items-center gap-1.5 transition-all",
-                              realm === r.slug
-                                ? "border-primary bg-primary/10"
-                                : "border-border bg-card hover:border-primary/50"
-                            )}
-                          >
-                            <I className="w-4 h-4" style={{ color: r.color }} />
-                            <span
-                              className="text-[9px] font-display uppercase tracking-widest"
-                              style={{ color: realm === r.slug ? r.color : undefined }}
-                            >
-                              {r.name}
-                            </span>
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom">
-                          {r.description}
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })}
-                </div>
-              </TooltipProvider>
-            </div>
-          )}
-
-          <div>
-            <Label htmlFor="discipline-name">
-              {isEditing ? "Name" : "Discipline Name"}
-            </Label>
-            <Input
-              id="discipline-name"
-              value={disciplineName}
-              onChange={(e) => setDisciplineName(e.target.value)}
-              placeholder="e.g. Archery, Cooking, Woodworking"
-              className="mt-1.5"
-              list={!isEditing && filteredDisciplines.length > 0 ? "discipline-suggestions" : undefined}
-            />
-            {!isEditing && filteredDisciplines.length > 0 && (
-              <datalist id="discipline-suggestions">
-                {filteredDisciplines.map((d) => (
-                  <option key={d.id} value={d.name} />
-                ))}
-              </datalist>
-            )}
-          </div>
-
-          {!isEditing && (
-            <div>
-              <Label htmlFor="subskill-name">Sub-skill (optional)</Label>
+              <Label htmlFor="skill-name">
+                {isEditing ? "Name" : "Skill Name"}
+              </Label>
               <Input
-                id="subskill-name"
-                value={subSkillName}
-                onChange={(e) => setSubSkillName(e.target.value)}
+                id="skill-name"
+                value={skillName}
+                onChange={(e) => setSkillName(e.target.value)}
+                placeholder="e.g. Archery, Cooking, Woodworking"
+                className="mt-1.5"
+                list={!isEditing && filteredSkills.length > 0 ? "skill-suggestions" : undefined}
+              />
+              {!isEditing && filteredSkills.length > 0 && (
+                <datalist id="skill-suggestions">
+                  {filteredSkills.map((s) => (
+                    <option key={s.id} value={s.name} />
+                  ))}
+                </datalist>
+              )}
+            </div>
+          )}
+
+          {!isEditing && (
+            <div>
+              <Label htmlFor="spec-name">
+                {isAddingSpec ? "Name" : "Specialization (optional)"}
+              </Label>
+              <Input
+                id="spec-name"
+                value={specName}
+                onChange={(e) => setSpecName(e.target.value)}
                 placeholder="e.g. Compound Bow, Grilling"
                 className="mt-1.5"
               />
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Leave blank for a discipline-only skill.
-              </p>
+              {!isAddingSpec && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  A focused branch within this skill. Leave blank for a skill-only entry.
+                </p>
+              )}
             </div>
           )}
 
@@ -303,8 +276,8 @@ export function SkillForm({ skill, disciplines = [], trigger }: Props) {
             onClick={onSubmit}
             disabled={
               isPending ||
-              !disciplineName.trim() ||
-              (!isEditing && !realm)
+              (isAddingSpec ? !specName.trim() : !skillName.trim()) ||
+              (!isEditing && !discipline)
             }
           >
             {isPending ? "Saving..." : isEditing ? "Save" : "Create"}

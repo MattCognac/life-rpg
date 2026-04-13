@@ -17,7 +17,7 @@ import { Zap, Swords, Flame, Trophy } from "lucide-react";
 import { formatNumber, startOfToday } from "@/lib/utils";
 import Link from "next/link";
 import { isDailyActiveToday, isCompletedToday } from "@/lib/daily";
-import { REALMS } from "@/lib/realms";
+import { DISCIPLINES } from "@/lib/disciplines";
 
 export const dynamic = "force-dynamic";
 
@@ -116,15 +116,15 @@ export default async function DashboardPage() {
   const activeDailies = dailyQuests.filter((q) => isDailyActiveToday(q.dailyCron));
   const streakByQuest = new Map(dailyStreaks.map((s) => [s.questId, s]));
 
-  const realmXpMap = new Map<string, number>();
+  const disciplineXpMap = new Map<string, number>();
   for (const d of disciplines) {
-    if (!d.realm) continue;
-    realmXpMap.set(d.realm, (realmXpMap.get(d.realm) ?? 0) + d.totalXp);
+    if (!d.discipline) continue;
+    disciplineXpMap.set(d.discipline, (disciplineXpMap.get(d.discipline) ?? 0) + d.totalXp);
   }
-  const radarData = REALMS.map((r) => ({
-    realm: r.name,
-    level: computeLevel(realmXpMap.get(r.slug) ?? 0).level,
-    color: r.color,
+  const radarData = DISCIPLINES.map((disc) => ({
+    discipline: disc.name,
+    level: computeLevel(disciplineXpMap.get(disc.slug) ?? 0).level,
+    color: disc.color,
   }));
 
   const stats = [
@@ -225,7 +225,7 @@ export default async function DashboardPage() {
         </div>
         <div data-tutorial="skills" className="norse-card p-5 h-fit">
           <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground mb-4">
-            Realm Mastery
+            Discipline Mastery
           </h2>
           <SkillRadar data={radarData} />
         </div>

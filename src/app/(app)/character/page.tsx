@@ -6,37 +6,54 @@ import { CHARACTER_CLASSES, resolveClass } from "@/lib/classes";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { XpBar } from "@/components/shared/xp-bar";
 import { LevelBadge } from "@/components/shared/level-badge";
-import { SkillCard } from "@/components/skills/skill-card";
 import { SkillForm } from "@/components/skills/skill-form";
 import { EditCharacter } from "@/components/character/edit-character";
-import { REALMS, getRealmBySlug } from "@/lib/realms";
+import { CharacterIdentity } from "@/components/character/character-identity";
+import { ActiveChains } from "@/components/character/active-chains";
+import { RecentTrophies } from "@/components/character/recent-trophies";
+import { UpcomingTrophies } from "@/components/character/upcoming-trophies";
+import { CharacterSections } from "@/components/character/character-sections";
+import { DISCIPLINES } from "@/lib/disciplines";
+import { getUpcomingAchievements } from "@/lib/achievements";
 import { Zap, Swords, Flame, Trophy, Calendar } from "lucide-react";
-import * as LucideIcons from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-function getIcon(name: string): LucideIcon {
-  const icons = LucideIcons as unknown as Record<string, LucideIcon>;
-  return icons[name] ?? LucideIcons.Sword;
-}
-
 export default async function CharacterPage() {
   const userId = await getAuthUser();
 
-  const [character, disciplines, completionCount, longestStreakRow, achievementsUnlocked] =
-    await Promise.all([
-      getCharacterForUser(userId),
-      db.skill.findMany({
-        where: { userId, parentId: null },
-        include: { children: { orderBy: { totalXp: "desc" } } },
-        orderBy: { totalXp: "desc" },
-      }),
-      db.questCompletion.count({ where: { userId } }),
-      db.dailyStreak.findFirst({ where: { userId }, orderBy: { longestStreak: "desc" } }),
-      db.achievement.count({ where: { userId, unlockedAt: { not: null } } }),
-    ]);
+  const [
+    character,
+    skills,
+    completionCount,
+    longestStreakRow,
+    achievementsUnlocked,
+    activeChains,
+    recentAchievements,
+    upcomingAchievements,
+  ] = await Promise.all([
+    getCharacterForUser(userId),
+    db.skill.findMany({
+      where: { userId, parentId: null },
+      include: { children: { orderBy: { totalXp: "desc" } } },
+      orderBy: { totalXp: "desc" },
+    }),
+    db.questCompletion.count({ where: { userId } }),
+    db.dailyStreak.findFirst({ where: { userId }, orderBy: { longestStreak: "desc" } }),
+    db.achievement.count({ where: { userId, unlockedAt: { not: null } } }),
+    db.questChain.findMany({
+      where: { userId },
+      include: { quests: { select: { status: true } } },
+      orderBy: { updatedAt: "desc" },
+    }),
+    db.achievement.findMany({
+      where: { userId, unlockedAt: { not: null } },
+      orderBy: { unlockedAt: "desc" },
+      take: 3,
+    }),
+    getUpcomingAchievements(userId, 3),
+  ]);
   if (!character) return null;
 
   const { level, currentLevelXp, xpForNextLevel } = computeLevel(character.totalXp);
@@ -63,13 +80,33 @@ export default async function CharacterPage() {
     },
   ];
 
-  const realmGroups = REALMS.map((realm) => ({
-    realm,
-    disciplines: disciplines.filter((d) => d.realm === realm.slug),
-  })).filter((g) => g.disciplines.length > 0);
+  const disciplineGroups = DISCIPLINES.map((disc) => ({
+    discipline: disc,
+    skills: skills
+      .filter((s) => s.discipline === disc.slug)
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        icon: s.icon,
+        color: s.color,
+        totalXp: s.totalXp,
+        level: s.level,
+        discipline: s.discipline,
+        specCount: s.children.length,
+      })),
+  }));
+
+  const inProgressChains = activeChains
+    .map((c) => {
+      const total = c.quests.length;
+      const completed = c.quests.filter((q) => q.status === "completed").length;
+      return { id: c.id, name: c.name, tier: c.tier, total, completed };
+    })
+    .filter((c) => c.total > 0 && c.completed < c.total);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
+      {/* Hero card */}
       <div className="norse-card p-8 relative overflow-hidden">
         <div
           className="absolute inset-0 opacity-20 pointer-events-none"
@@ -133,48 +170,40 @@ export default async function CharacterPage() {
         </div>
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-xl tracking-widest uppercase text-foreground">
-            Disciplines
-          </h2>
-          <SkillForm disciplines={disciplines.map((d) => ({ id: d.id, name: d.name, realm: d.realm }))} />
-        </div>
-        {disciplines.length === 0 ? (
-          <div className="norse-card p-8 text-center text-sm text-muted-foreground">
-            Forge your first discipline to begin tracking mastery.
+      {/* Identity + Skills + Bottom cards */}
+      <CharacterSections
+        identity={
+          <CharacterIdentity
+            characterClass={characterClass}
+            daysActive={daysActive}
+            createdAt={character.createdAt}
+          />
+        }
+        skillsHeader={
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-xl tracking-widest uppercase text-foreground">
+              Skills
+            </h2>
+            <SkillForm skills={skills.map((s) => ({ id: s.id, name: s.name, discipline: s.discipline }))} />
           </div>
-        ) : (
-          <div className="space-y-6">
-            {realmGroups.map(({ realm, disciplines: realmDisciplines }) => {
-              const RealmIcon = getIcon(realm.icon);
-              return (
-                <div key={realm.slug}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <RealmIcon className="w-4 h-4" style={{ color: realm.color }} />
-                    <h3
-                      className="font-display text-sm tracking-widest uppercase"
-                      style={{ color: realm.color }}
-                    >
-                      {realm.name}
-                    </h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {realmDisciplines.map((discipline) => (
-                      <SkillCard
-                        key={discipline.id}
-                        skill={discipline}
-                        href={`/skills/${discipline.id}`}
-                        subSkillCount={discipline.children.length}
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+        }
+        skillGroups={disciplineGroups}
+        bottomRow={
+          <>
+            <ActiveChains chains={inProgressChains.slice(0, 5)} />
+            <UpcomingTrophies achievements={upcomingAchievements} />
+            <RecentTrophies
+              achievements={recentAchievements.map((a) => ({
+                key: a.key,
+                name: a.name,
+                description: a.description,
+                icon: a.icon,
+                unlockedAt: a.unlockedAt!,
+              }))}
+            />
+          </>
+        }
+      />
     </div>
   );
 }

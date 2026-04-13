@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { getChainTier } from "@/lib/realms";
+import { getChainTier } from "@/lib/disciplines";
 import { Link2, Check } from "lucide-react";
 
 interface Props {

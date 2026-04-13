@@ -30,12 +30,12 @@ export function ChainProgress({ quests }: Props) {
         const isLast = i === sorted.length - 1;
 
         return (
-          <div key={quest.id} className="relative flex gap-4 pb-6">
+          <div key={quest.id} className="relative isolate flex gap-4 pb-6">
             {/* Connector line */}
             {!isLast && (
               <div
                 className={cn(
-                  "absolute left-[18px] top-10 w-0.5 h-full",
+                  "absolute left-[18px] top-9 bottom-0 w-0.5 -z-10",
                   isCompleted ? "bg-success" : "bg-border"
                 )}
               />
@@ -45,9 +45,10 @@ export function ChainProgress({ quests }: Props) {
             <div
               className={cn(
                 "relative z-10 w-9 h-9 flex-shrink-0 rounded-full border-2 flex items-center justify-center font-display text-sm",
-                isCompleted && "border-success bg-success/20 text-success",
-                isActive && "border-primary bg-primary/20 text-primary animate-ember-glow",
-                isLocked && "border-border bg-card text-muted-foreground"
+                "bg-card",
+                isCompleted && "border-success text-success",
+                isActive && "border-primary text-primary animate-ember-glow",
+                isLocked && "border-border text-muted-foreground"
               )}
             >
               {isCompleted ? (

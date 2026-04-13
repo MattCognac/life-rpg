@@ -12,6 +12,7 @@ const CATEGORIES: Array<{ key: string; label: string }> = [
   { key: "skills", label: "Skills" },
   { key: "streaks", label: "Streaks" },
   { key: "difficulty", label: "Difficulty" },
+  { key: "disciplines", label: "Disciplines" },
 ];
 
 export default async function AchievementsPage() {
