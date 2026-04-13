@@ -1,7 +1,33 @@
 import { db } from "@/lib/db";
 import { computeLevel, titleForLevel } from "@/lib/xp";
 import { getCharacterForUser } from "@/lib/character";
-import { propagateXpToParent } from "@/actions/skill-actions";
+
+/**
+ * Propagate XP change to parent skill (denormalized).
+ * Call after awarding or refunding XP on a specialization.
+ */
+export async function propagateXpToParent(
+  skillId: string,
+  xpDelta: number
+): Promise<void> {
+  const skill = await db.skill.findUnique({
+    where: { id: skillId },
+    select: { parentId: true },
+  });
+  if (!skill?.parentId) return;
+
+  const parent = await db.skill.findUnique({
+    where: { id: skill.parentId },
+  });
+  if (!parent) return;
+
+  const newTotal = Math.max(0, parent.totalXp + xpDelta);
+  const { level: newLevel } = computeLevel(newTotal);
+  await db.skill.update({
+    where: { id: parent.id },
+    data: { totalXp: newTotal, level: newLevel },
+  });
+}
 
 /**
  * Refund XP from a character after quest deletion/undo.
@@ -29,8 +55,9 @@ export async function refundCharacterXp(userId: string, xpAmount: number) {
 /**
  * Refund XP from a skill after quest deletion/undo.
  * Also propagates the refund to the parent skill if applicable.
+ * @param propagationMultiplier accounts for class perks like Artificer's deep_craft (2x parent propagation)
  */
-export async function refundSkillXp(skillId: string, xpAmount: number) {
+export async function refundSkillXp(skillId: string, xpAmount: number, propagationMultiplier = 1) {
   if (xpAmount <= 0) return;
 
   const skill = await db.skill.findUnique({ where: { id: skillId } });
@@ -44,6 +71,6 @@ export async function refundSkillXp(skillId: string, xpAmount: number) {
     data: { totalXp: newTotal, level: newLevel },
   });
 
-  await propagateXpToParent(skillId, -xpAmount);
+  await propagateXpToParent(skillId, -xpAmount * propagationMultiplier);
 }
 

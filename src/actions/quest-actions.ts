@@ -12,10 +12,10 @@ import {
 import { checkAchievements, reconcileAchievements } from "@/lib/achievements";
 import { getCharacterForUser } from "@/lib/character";
 import { getAuthUser } from "@/lib/auth";
-import { isCompletedToday, isStreakBroken } from "@/lib/daily";
+import { isStreakBroken } from "@/lib/daily";
 import { startOfToday } from "@/lib/utils";
 import { cleanupOrphanedSkill, propagateXpToParent } from "@/actions/skill-actions";
-import { CHAIN_TIER_BONUS, type ChainTier } from "@/lib/realms";
+import { CHAIN_TIER_BONUS, type ChainTier } from "@/lib/disciplines";
 import { revalidateApp } from "@/lib/revalidate";
 import { refundCharacterXp, refundSkillXp } from "@/lib/xp-operations";
 import {
@@ -48,7 +48,10 @@ export async function createQuest(input: {
       if (!chain) return { success: false, error: "Chain not found" };
     }
     if (input.skillId) {
-      const skill = await db.skill.findFirst({ where: { id: input.skillId, userId } });
+      const skill = await db.skill.findFirst({
+        where: { id: input.skillId, userId },
+        include: { parent: { select: { discipline: true } } },
+      });
       if (!skill) return { success: false, error: "Skill not found" };
     }
 
@@ -149,11 +152,12 @@ export async function updateQuest(
 }
 
 async function deleteActivityForQuest(questId: string, userId: string): Promise<void> {
+  const metadataKey = `"questId":"${questId}"`;
   const completionEntry = await db.activityLog.findFirst({
     where: {
       userId,
       type: "quest_complete",
-      metadata: { contains: questId },
+      metadata: { contains: metadataKey },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -217,7 +221,10 @@ export async function deleteQuest(id: string): Promise<ActionResult> {
     if (totalXpRefund > 0) {
       await refundCharacterXp(userId, totalXpRefund);
       if (quest.skill) {
-        await refundSkillXp(quest.skill.id, totalXpRefund);
+        const character = await getCharacterForUser(userId);
+        const charClass = character ? resolveClass(character.class) : "warrior";
+        const pMult = CHARACTER_CLASSES[charClass].perk === "deep_craft" ? 2 : 1;
+        await refundSkillXp(quest.skill.id, totalXpRefund, pMult);
       }
     }
 
@@ -253,7 +260,7 @@ export async function completeQuest(id: string): Promise<ActionResult> {
     const quest = await db.quest.findFirst({
       where: { id, userId },
       include: {
-        skill: { include: { parent: { select: { realm: true } } } },
+        skill: { include: { parent: { select: { discipline: true } } } },
         chain: true,
       },
     });
@@ -263,7 +270,7 @@ export async function completeQuest(id: string): Promise<ActionResult> {
     const character = await getCharacterForUser(userId);
     const characterClass = character ? resolveClass(character.class) : "warrior";
     const classDef = CHARACTER_CLASSES[characterClass];
-    const questRealm = quest.skill?.realm ?? quest.skill?.parent?.realm ?? null;
+    const questDiscipline = quest.skill?.discipline ?? quest.skill?.parent?.discipline ?? null;
 
     const events: ActionEvents = {};
     let xpToAward = quest.xpReward;
@@ -310,11 +317,10 @@ export async function completeQuest(id: string): Promise<ActionResult> {
     xpToAward = applyClassXpModifiers({
       baseXp: xpToAward,
       characterClass,
-      realm: questRealm,
+      discipline: questDiscipline,
       difficulty: quest.difficulty,
       isDaily: quest.isDaily,
       isChainQuest: !!quest.chainId,
-      skillLevel: quest.skill?.level ?? 1,
     });
 
     events.xpAwarded = xpToAward;
@@ -378,8 +384,12 @@ export async function completeQuest(id: string): Promise<ActionResult> {
       }
       const chainQuests = await db.quest.findMany({
         where: { chainId: quest.chainId, userId },
+        include: { completions: { take: 1 } },
       });
-      if (chainQuests.length > 0 && chainQuests.every((q) => q.status === "completed")) {
+      const allDone = chainQuests.length > 0 && chainQuests.every((q) =>
+        q.status === "completed" || (q.isDaily && q.completions.length > 0)
+      );
+      if (allDone) {
         events.chainCompleted = {
           chainId: quest.chainId,
           chainName: quest.chain?.name ?? "Chain",
@@ -509,13 +519,15 @@ export async function undoDailyCompletion(id: string): Promise<ActionResult> {
     }
 
     if (quest.skill) {
+      const charClass = character ? resolveClass(character.class) : "warrior";
+      const pMult = CHARACTER_CLASSES[charClass].perk === "deep_craft" ? 2 : 1;
       const newSkillXp = Math.max(0, quest.skill.totalXp - todayCompletion.xpAwarded);
       const { level: newSkillLevel } = computeLevel(newSkillXp);
       await db.skill.update({
         where: { id: quest.skill.id },
         data: { totalXp: newSkillXp, level: newSkillLevel },
       });
-      await propagateXpToParent(quest.skill.id, -todayCompletion.xpAwarded);
+      await propagateXpToParent(quest.skill.id, -todayCompletion.xpAwarded * pMult);
     }
 
     const streak = await db.dailyStreak.findUnique({
@@ -575,13 +587,15 @@ export async function uncompleteQuest(id: string): Promise<ActionResult> {
       }
 
       if (quest.skill) {
+        const charClass = character ? resolveClass(character.class) : "warrior";
+        const pMult = CHARACTER_CLASSES[charClass].perk === "deep_craft" ? 2 : 1;
         const newSkillXp = Math.max(0, quest.skill.totalXp - lastCompletion.xpAwarded);
         const { level: newSkillLevel } = computeLevel(newSkillXp);
         await db.skill.update({
           where: { id: quest.skill.id },
           data: { totalXp: newSkillXp, level: newSkillLevel },
         });
-        await propagateXpToParent(quest.skill.id, -lastCompletion.xpAwarded);
+        await propagateXpToParent(quest.skill.id, -lastCompletion.xpAwarded * pMult);
       }
     }
 
