@@ -9,13 +9,15 @@ function sanitizeRedirectPath(raw: string): string {
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const code = searchParams.get("code");
-  const next = sanitizeRedirectPath(searchParams.get("next") ?? "/");
+  const rawNext = searchParams.get("next");
+  const next = sanitizeRedirectPath(rawNext ?? "/");
 
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      const destination = rawNext ? next : "/auth/verified";
+      return NextResponse.redirect(`${origin}${destination}`);
     }
     console.error("Auth code exchange failed:", error.message);
   }
