@@ -4,8 +4,8 @@ import {
   LayoutDashboard,
   Swords,
   Sun,
+  Link2,
   UserCircle,
-  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOptimisticPathname } from "@/lib/use-optimistic-pathname";
@@ -14,8 +14,8 @@ const items = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/quests", label: "Quests", icon: Swords },
   { href: "/daily", label: "Dailies", icon: Sun },
+  { href: "/chains", label: "Chains", icon: Link2 },
   { href: "/character", label: "Hero", icon: UserCircle },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function MobileNav() {

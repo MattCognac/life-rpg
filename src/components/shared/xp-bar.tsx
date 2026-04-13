@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function XpBar({ current, max, showLabel = true, color, className }: Props) {
-  const pct = Math.min(100, (current / max) * 100);
+  const pct = max > 0 ? Math.min(100, (current / max) * 100) : 100;
   return (
     <div className={cn("w-full", className)}>
       <div className="xp-bar relative">

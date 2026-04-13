@@ -51,7 +51,7 @@ export async function Header() {
           <div className="xp-bar w-full">
             <div
               className="xp-bar-fill"
-              style={{ width: `${(currentLevelXp / xpForNextLevel) * 100}%` }}
+              style={{ width: `${xpForNextLevel > 0 ? (currentLevelXp / xpForNextLevel) * 100 : 100}%` }}
             />
             <span className="absolute inset-0 flex items-center px-1.5 text-[9px] font-body tracking-wider text-foreground/70">
               {formatNumber(currentLevelXp)} / {formatNumber(xpForNextLevel)} XP

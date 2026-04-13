@@ -17,6 +17,7 @@ import {
 import { DifficultyStars } from "@/components/quests/difficulty-stars";
 import { updateChain, removeQuestsFromChain } from "@/actions/chain-actions";
 import { handleActionResult } from "@/components/shared/action-handler";
+import { CHAIN_TIERS } from "@/lib/disciplines";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Check, Lock, Trash2, Zap, AlertTriangle } from "lucide-react";
@@ -36,9 +37,9 @@ interface Props {
     id: string;
     name: string;
     description: string;
+    tier: string;
   };
   quests: ChainQuest[];
-  skills: Array<{ id: string; name: string; color: string }>;
 }
 
 export function ChainEditForm({ chain, quests }: Props) {
@@ -46,11 +47,12 @@ export function ChainEditForm({ chain, quests }: Props) {
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState(chain.name);
   const [description, setDescription] = useState(chain.description);
+  const [tier, setTier] = useState(chain.tier);
   const [deleteTarget, setDeleteTarget] = useState<ChainQuest | null>(null);
 
   const onSaveMetadata = () => {
     startTransition(async () => {
-      const result = await updateChain(chain.id, { name, description });
+      const result = await updateChain(chain.id, { name, description, tier });
       handleActionResult(result);
       if (result.success) router.refresh();
     });
@@ -69,11 +71,10 @@ export function ChainEditForm({ chain, quests }: Props) {
   };
 
   const metadataChanged =
-    name !== chain.name || description !== chain.description;
+    name !== chain.name || description !== chain.description || tier !== chain.tier;
 
   return (
     <div className="space-y-6">
-      {/* Chain metadata */}
       <div className="norse-card p-6 space-y-4">
         <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground">
           Chain Details
@@ -96,6 +97,35 @@ export function ChainEditForm({ chain, quests }: Props) {
             className="mt-1.5"
           />
         </div>
+        <div>
+          <Label>Tier</Label>
+          <div className="mt-1.5 grid grid-cols-4 gap-2">
+            {CHAIN_TIERS.map((t) => (
+              <button
+                key={t.slug}
+                type="button"
+                onClick={() => setTier(t.slug)}
+                className={cn(
+                  "py-2.5 border flex flex-col items-center gap-1 transition-all",
+                  tier === t.slug
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-card hover:border-primary/50"
+                )}
+              >
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: t.color }}
+                />
+                <span
+                  className="text-[9px] font-display uppercase tracking-widest"
+                  style={{ color: tier === t.slug ? t.color : undefined }}
+                >
+                  {t.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
         {metadataChanged && (
           <div className="flex justify-end">
             <Button
@@ -108,7 +138,6 @@ export function ChainEditForm({ chain, quests }: Props) {
         )}
       </div>
 
-      {/* Quest list */}
       <div className="space-y-3">
         <h2 className="font-display text-sm tracking-widest uppercase text-muted-foreground">
           Quest Steps ({quests.length})
@@ -177,7 +206,6 @@ export function ChainEditForm({ chain, quests }: Props) {
         )}
       </div>
 
-      {/* Delete confirmation dialog */}
       <Dialog
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}

@@ -1,16 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
+import { env } from "@/lib/env";
 
 export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const secretKey = process.env.SUPABASE_SECRET_KEY;
-
-  if (!url || !secretKey) {
+  if (!env.SUPABASE_SECRET_KEY) {
     throw new Error(
       "Missing SUPABASE_SECRET_KEY — required for admin operations like account deletion",
     );
   }
 
-  return createClient(url, secretKey, {
+  return createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

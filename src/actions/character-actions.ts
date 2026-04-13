@@ -91,20 +91,18 @@ export async function createCharacter(
       },
     });
 
-    // Seed achievements for this user
-    for (const def of ACHIEVEMENTS) {
-      await db.achievement.create({
-        data: {
-          userId,
-          key: def.key,
-          name: def.name,
-          description: def.description,
-          icon: def.icon,
-          category: def.category,
-          sortOrder: def.sortOrder,
-        },
-      });
-    }
+    await db.achievement.createMany({
+      data: ACHIEVEMENTS.map((def) => ({
+        userId,
+        key: def.key,
+        name: def.name,
+        description: def.description,
+        icon: def.icon,
+        category: def.category,
+        sortOrder: def.sortOrder,
+      })),
+      skipDuplicates: true,
+    });
 
     await db.activityLog.create({
       data: {

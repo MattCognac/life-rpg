@@ -9,19 +9,25 @@ import { reconcileChainLocks } from "@/actions/quest-actions";
 import { cleanupOrphanedSkill } from "@/actions/skill-actions";
 import { revalidateApp } from "@/lib/revalidate";
 import { refundCharacterXp, refundSkillXp } from "@/lib/xp-operations";
+import { CHAIN_TIERS, type ChainTier } from "@/lib/disciplines";
+
+const VALID_TIERS = new Set<string>(CHAIN_TIERS.map((t) => t.slug));
 
 export async function createChain(input: {
   name: string;
   description?: string;
+  tier?: string;
 }): Promise<ActionResult<{ id: string }>> {
   try {
     const userId = await getAuthUser();
     if (!input.name.trim()) return { success: false, error: "Name is required" };
+    const tier = input.tier && VALID_TIERS.has(input.tier) ? input.tier : "common";
     const chain = await db.questChain.create({
       data: {
         userId,
         name: input.name.trim(),
         description: input.description ?? "",
+        tier,
       },
     });
     revalidatePath("/chains");
@@ -37,17 +43,19 @@ export async function createChain(input: {
 
 export async function updateChain(
   id: string,
-  input: { name?: string; description?: string }
+  input: { name?: string; description?: string; tier?: string }
 ): Promise<ActionResult> {
   try {
     const userId = await getAuthUser();
     const existing = await db.questChain.findFirst({ where: { id, userId } });
     if (!existing) return { success: false, error: "Chain not found" };
+    const validTier = input.tier !== undefined && VALID_TIERS.has(input.tier) ? input.tier : undefined;
     await db.questChain.update({
       where: { id },
       data: {
         ...(input.name !== undefined && { name: input.name.trim() }),
         ...(input.description !== undefined && { description: input.description }),
+        ...(validTier !== undefined && { tier: validTier }),
       },
     });
     revalidatePath("/chains");

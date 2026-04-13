@@ -34,6 +34,8 @@ export default async function EditChainPage({
     id: s.id,
     name: s.name,
     color: s.color,
+    discipline: s.discipline,
+    children: s.children.map((c) => ({ id: c.id, name: c.name, color: c.color })),
   }));
 
   return (
@@ -62,6 +64,7 @@ export default async function EditChainPage({
           id: chain.id,
           name: chain.name,
           description: chain.description,
+          tier: chain.tier,
         }}
         quests={chain.quests.map((q) => ({
           id: q.id,
@@ -71,7 +74,6 @@ export default async function EditChainPage({
           status: q.status,
           chainOrder: q.chainOrder,
         }))}
-        skills={skillProps}
       />
     </div>
   );

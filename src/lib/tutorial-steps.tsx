@@ -56,9 +56,9 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "skills",
     target: '[data-tutorial="skills"]',
-    title: "Realm Mastery",
+    title: "Discipline Mastery",
     description:
-      "Your power is split across 6 realms — Body, Mind, Spirit, Nature, Craft, and Life. Each realm contains disciplines that level up as you complete related quests.",
+      "Your power is split across 6 disciplines — Body, Mind, Spirit, Nature, Craft, and Life. Each discipline contains skills that level up as you complete related quests.",
     icon: <Target className="w-6 h-6" />,
     tooltipPosition: "below",
   },
@@ -76,7 +76,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     target: '[data-tutorial="forge-ai"]',
     title: "Create Your First Goal",
     description:
-      "Ready to begin? Use Odin AI to break any goal into a step-by-step quest chain, or create quests manually from scratch anytime. This shit's powerful as fuck. Seriously, try it.",
+      "Ready to begin? Use Odin AI to break any goal into a step-by-step quest chain, or create quests manually from scratch anytime. Seriously, try it — it's powerful.",
     icon: <Sparkles className="w-6 h-6" />,
     tooltipPosition: "below",
   },

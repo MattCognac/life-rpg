@@ -5,53 +5,63 @@ import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/types";
 import { checkAchievements } from "@/lib/achievements";
 import { getAuthUser } from "@/lib/auth";
-import { isValidRealm } from "@/lib/realms";
-import { computeLevel } from "@/lib/xp";
+import { isValidDiscipline } from "@/lib/disciplines";
+import { propagateXpToParent } from "@/lib/xp-operations";
+
+export { propagateXpToParent };
 
 export async function createSkill(input: {
-  realm: string;
-  disciplineName: string;
-  subSkillName?: string;
+  discipline: string;
+  skillName: string;
+  specializationName?: string;
   icon?: string;
   color?: string;
 }): Promise<ActionResult<{ id: string }>> {
   try {
     const userId = await getAuthUser();
-    if (!input.disciplineName.trim()) {
-      return { success: false, error: "Discipline name is required" };
+    if (!input.skillName.trim()) {
+      return { success: false, error: "Skill name is required" };
     }
-    if (!isValidRealm(input.realm)) {
-      return { success: false, error: "Invalid realm" };
+    if (!isValidDiscipline(input.discipline)) {
+      return { success: false, error: "Invalid discipline" };
     }
 
-    let discipline = await db.skill.findFirst({
+    let skill = await db.skill.findFirst({
       where: {
         userId,
-        name: { equals: input.disciplineName.trim(), mode: "insensitive" },
+        name: { equals: input.skillName.trim(), mode: "insensitive" },
         parentId: null,
       },
     });
 
-    if (!discipline) {
-      discipline = await db.skill.create({
-        data: {
-          userId,
-          name: input.disciplineName.trim(),
-          realm: input.realm,
-          icon: input.icon ?? "Sword",
-          color: input.color ?? "#dd6119",
-        },
-      });
+    if (!skill) {
+      try {
+        skill = await db.skill.create({
+          data: {
+            userId,
+            name: input.skillName.trim(),
+            discipline: input.discipline,
+            icon: input.icon ?? "Sword",
+            color: input.color ?? "#dd6119",
+          },
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        if (msg.includes("Unique constraint")) {
+          return { success: false, error: "A skill with that name already exists" };
+        }
+        throw err;
+      }
     }
 
-    if (!input.subSkillName?.trim()) {
-      const achievementsUnlocked = await checkAchievements(userId);
+    if (!input.specializationName?.trim()) {
+      const achievementsUnlocked = await checkAchievements(userId).catch(() => []);
       revalidatePath("/skills");
       revalidatePath("/character");
       revalidatePath("/");
       return {
         success: true,
-        data: { id: discipline.id },
+        data: { id: skill.id },
         events: { achievementsUnlocked },
       };
     }
@@ -59,62 +69,66 @@ export async function createSkill(input: {
     const existingSub = await db.skill.findFirst({
       where: {
         userId,
-        name: { equals: input.subSkillName.trim(), mode: "insensitive" },
-        parentId: discipline.id,
+        name: { equals: input.specializationName!.trim(), mode: "insensitive" },
+        parentId: skill.id,
       },
     });
 
     if (existingSub) {
-      return { success: false, error: "A sub-skill with that name already exists under this discipline" };
+      return { success: false, error: "A specialization with that name already exists under this skill" };
     }
 
-    const subSkill = await db.skill.create({
-      data: {
-        userId,
-        name: input.subSkillName.trim(),
-        parentId: discipline.id,
-        icon: input.icon ?? discipline.icon,
-        color: input.color ?? discipline.color,
-      },
-    });
+    try {
+      const specialization = await db.skill.create({
+        data: {
+          userId,
+          name: input.specializationName!.trim(),
+          parentId: skill.id,
+          icon: input.icon ?? skill.icon,
+          color: input.color ?? skill.color,
+        },
+      });
 
-    const achievementsUnlocked = await checkAchievements(userId);
-    revalidatePath("/skills");
-    revalidatePath("/character");
-    revalidatePath("/");
-    return {
-      success: true,
-      data: { id: subSkill.id },
-      events: { achievementsUnlocked },
-    };
+      const achievementsUnlocked = await checkAchievements(userId).catch(() => []);
+      revalidatePath("/skills");
+      revalidatePath("/character");
+      revalidatePath("/");
+      return {
+        success: true,
+        data: { id: specialization.id },
+        events: { achievementsUnlocked },
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("Unique constraint")) {
+        return { success: false, error: "A specialization with that name already exists under this skill" };
+      }
+      throw err;
+    }
   } catch (err) {
     console.error("createSkill failed:", err);
-    const msg = err instanceof Error ? err.message : "";
-    if (msg.includes("Unique constraint")) {
-      return { success: false, error: "A skill with that name already exists" };
-    }
     return { success: false, error: "Failed to create skill" };
   }
 }
 
 export async function updateSkill(
   id: string,
-  input: { name?: string; icon?: string; color?: string; realm?: string }
+  input: { name?: string; icon?: string; color?: string; discipline?: string }
 ): Promise<ActionResult> {
   try {
     const userId = await getAuthUser();
     const existing = await db.skill.findFirst({ where: { id, userId } });
     if (!existing) return { success: false, error: "Skill not found" };
 
-    if (input.realm !== undefined && !isValidRealm(input.realm)) {
-      return { success: false, error: "Invalid realm" };
+    if (input.discipline !== undefined && !isValidDiscipline(input.discipline)) {
+      return { success: false, error: "Invalid discipline" };
     }
 
     const data: Record<string, unknown> = {};
     if (input.name !== undefined) data.name = input.name.trim();
     if (input.icon !== undefined) data.icon = input.icon;
     if (input.color !== undefined) data.color = input.color;
-    if (input.realm !== undefined && !existing.parentId) data.realm = input.realm;
+    if (input.discipline !== undefined && !existing.parentId) data.discipline = input.discipline;
 
     await db.skill.update({ where: { id }, data });
     revalidatePath("/skills");
@@ -171,9 +185,9 @@ export async function deleteSkill(id: string): Promise<ActionResult> {
 
 /**
  * After a quest/chain is deleted, clean up orphaned skills:
- * - Sub-skills with zero remaining quests get deleted
- * - Disciplines with zero quests AND zero children get deleted
- * Also refunds XP from parent discipline when a sub-skill's XP changes.
+ * - Specializations with zero remaining quests get deleted
+ * - Skills with zero quests AND zero children get deleted
+ * Also refunds XP from parent skill when a specialization's XP changes.
  */
 export async function cleanupOrphanedSkill(
   skillId: string,
@@ -204,29 +218,3 @@ export async function cleanupOrphanedSkill(
   }
 }
 
-/**
- * Propagate XP change to parent discipline (denormalized).
- * Call after awarding or refunding XP on a sub-skill.
- */
-export async function propagateXpToParent(
-  skillId: string,
-  xpDelta: number
-): Promise<void> {
-  const skill = await db.skill.findUnique({
-    where: { id: skillId },
-    select: { parentId: true },
-  });
-  if (!skill?.parentId) return;
-
-  const parent = await db.skill.findUnique({
-    where: { id: skill.parentId },
-  });
-  if (!parent) return;
-
-  const newTotal = Math.max(0, parent.totalXp + xpDelta);
-  const { level: newLevel } = computeLevel(newTotal);
-  await db.skill.update({
-    where: { id: parent.id },
-    data: { totalXp: newTotal, level: newLevel },
-  });
-}

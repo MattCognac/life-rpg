@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -11,16 +9,19 @@ import { Label } from "@/components/ui/label";
 import { BackButton } from "@/components/ui/back-button";
 import { createChain } from "@/actions/chain-actions";
 import { handleActionResult } from "@/components/shared/action-handler";
+import { CHAIN_TIERS } from "@/lib/disciplines";
+import { cn } from "@/lib/utils";
 
 export default function NewChainPage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [tier, setTier] = useState("common");
 
   const onSubmit = () => {
     startTransition(async () => {
-      const result = await createChain({ name, description });
+      const result = await createChain({ name, description, tier });
       handleActionResult(result);
       if (result.success && result.data) {
         router.push(`/chains/${result.data.id}`);
@@ -61,6 +62,35 @@ export default function NewChainPage() {
             placeholder="What is this chain about?"
             className="mt-1.5"
           />
+        </div>
+        <div>
+          <Label>Tier</Label>
+          <div className="mt-1.5 grid grid-cols-4 gap-2">
+            {CHAIN_TIERS.map((t) => (
+              <button
+                key={t.slug}
+                type="button"
+                onClick={() => setTier(t.slug)}
+                className={cn(
+                  "py-2.5 border flex flex-col items-center gap-1 transition-all",
+                  tier === t.slug
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-card hover:border-primary/50"
+                )}
+              >
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: t.color }}
+                />
+                <span
+                  className="text-[9px] font-display uppercase tracking-widest"
+                  style={{ color: tier === t.slug ? t.color : undefined }}
+                >
+                  {t.name}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
         <div className="flex justify-end">
           <Button onClick={onSubmit} disabled={isPending || !name.trim()}>

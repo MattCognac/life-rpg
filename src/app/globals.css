@@ -101,18 +101,6 @@
 }
 
 @layer components {
-  /* Angular shield-shaped clip-path for buttons */
-  .clip-shield {
-    clip-path: polygon(
-      8px 0,
-      calc(100% - 8px) 0,
-      100% 50%,
-      calc(100% - 8px) 100%,
-      8px 100%,
-      0 50%
-    );
-  }
-
   /* Rune-panel: angular card edges */
   .clip-rune {
     clip-path: polygon(
@@ -124,28 +112,6 @@
       0 12px
     );
   }
-
-  /* Rune heading divider */
-  .rune-divider {
-    position: relative;
-    text-align: center;
-  }
-  .rune-divider::before,
-  .rune-divider::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    width: 40%;
-    height: 1px;
-    background: linear-gradient(
-      to right,
-      transparent,
-      hsl(var(--primary) / 0.6),
-      transparent
-    );
-  }
-  .rune-divider::before { left: 0; }
-  .rune-divider::after { right: 0; }
 
   /* Norse card with angular border */
   .norse-card {

@@ -1,4 +1,4 @@
-import type { RealmSlug } from "./realms";
+import type { DisciplineSlug } from "./disciplines";
 
 export const CHARACTER_CLASSES = {
   warrior: {
@@ -6,8 +6,8 @@ export const CHARACTER_CLASSES = {
     flavor: "Strength is earned through struggle.",
     description: "+15% XP in Body. Bonus XP on Hard and Legendary quests.",
     icon: "Swords",
-    primaryRealm: "body" as RealmSlug,
-    secondaryRealm: null,
+    primaryDiscipline: "body" as DisciplineSlug,
+    secondaryDiscipline: null,
     perk: "hard_quest_bonus",
   },
   mage: {
@@ -15,8 +15,8 @@ export const CHARACTER_CLASSES = {
     flavor: "Knowledge is the sharpest blade.",
     description: "+15% XP in Mind. Chain completions grant bonus XP.",
     icon: "Sparkles",
-    primaryRealm: "mind" as RealmSlug,
-    secondaryRealm: null,
+    primaryDiscipline: "mind" as DisciplineSlug,
+    secondaryDiscipline: null,
     perk: "chain_bonus",
   },
   ranger: {
@@ -24,8 +24,8 @@ export const CHARACTER_CLASSES = {
     flavor: "There are no shortcuts through the mountains.",
     description: "+15% XP in Nature, +5% in Body. Bonus XP on chain quests.",
     icon: "Compass",
-    primaryRealm: "nature" as RealmSlug,
-    secondaryRealm: "body" as RealmSlug,
+    primaryDiscipline: "nature" as DisciplineSlug,
+    secondaryDiscipline: "body" as DisciplineSlug,
     perk: "chain_quest_bonus",
   },
   monk: {
@@ -33,8 +33,8 @@ export const CHARACTER_CLASSES = {
     flavor: "A thousand strikes begin with stillness.",
     description: "+15% XP in Spirit. Daily streaks survive one missed day.",
     icon: "Leaf",
-    primaryRealm: "spirit" as RealmSlug,
-    secondaryRealm: null,
+    primaryDiscipline: "spirit" as DisciplineSlug,
+    secondaryDiscipline: null,
     perk: "streak_grace",
   },
   druid: {
@@ -42,8 +42,8 @@ export const CHARACTER_CLASSES = {
     flavor: "All things grow in time.",
     description: "+15% XP in Nature, +5% in Spirit. Daily quests grant bonus XP.",
     icon: "TreePine",
-    primaryRealm: "nature" as RealmSlug,
-    secondaryRealm: "spirit" as RealmSlug,
+    primaryDiscipline: "nature" as DisciplineSlug,
+    secondaryDiscipline: "spirit" as DisciplineSlug,
     perk: "daily_bonus",
   },
   merchant: {
@@ -51,17 +51,17 @@ export const CHARACTER_CLASSES = {
     flavor: "Every coin tells a story of cunning.",
     description: "+15% XP in Life. Streak bonuses activate earlier.",
     icon: "Coins",
-    primaryRealm: "life" as RealmSlug,
-    secondaryRealm: null,
+    primaryDiscipline: "life" as DisciplineSlug,
+    secondaryDiscipline: null,
     perk: "early_streak",
   },
   artificer: {
     name: "Artificer",
     flavor: "If it doesn't exist, I'll build it.",
-    description: "+15% XP in Craft. Sub-skills level up parent disciplines faster.",
+    description: "+15% XP in Craft. Specializations level up parent skills faster.",
     icon: "Wrench",
-    primaryRealm: "craft" as RealmSlug,
-    secondaryRealm: null,
+    primaryDiscipline: "craft" as DisciplineSlug,
+    secondaryDiscipline: null,
     perk: "deep_craft",
   },
   skald: {
@@ -69,8 +69,8 @@ export const CHARACTER_CLASSES = {
     flavor: "The song outlives the sword.",
     description: "+15% XP in Mind, +5% in Craft. Bonus XP on Trivial and Easy quests.",
     icon: "Scroll",
-    primaryRealm: "mind" as RealmSlug,
-    secondaryRealm: "craft" as RealmSlug,
+    primaryDiscipline: "mind" as DisciplineSlug,
+    secondaryDiscipline: "craft" as DisciplineSlug,
     perk: "small_quest_bonus",
   },
 } as const;
@@ -92,31 +92,30 @@ export function resolveClass(raw: string): CharacterClass {
   return LEGACY_CLASS_MAP[raw] ?? "warrior";
 }
 
-export function getRealmBonus(
+export function getDisciplineBonus(
   characterClass: CharacterClass,
-  realm: string | null | undefined,
+  discipline: string | null | undefined,
 ): number {
-  if (!realm) return 1.0;
+  if (!discipline) return 1.0;
   const cls = CHARACTER_CLASSES[characterClass];
-  if (cls.primaryRealm === realm) return 1.15;
-  if (cls.secondaryRealm === realm) return 1.05;
+  if (cls.primaryDiscipline === discipline) return 1.15;
+  if (cls.secondaryDiscipline === discipline) return 1.05;
   return 1.0;
 }
 
 export function applyClassXpModifiers(params: {
   baseXp: number;
   characterClass: CharacterClass;
-  realm: string | null | undefined;
+  discipline: string | null | undefined;
   difficulty: number;
   isDaily: boolean;
   isChainQuest: boolean;
-  skillLevel: number;
 }): number {
-  const { baseXp, characterClass, realm, difficulty, isDaily, isChainQuest } = params;
+  const { baseXp, characterClass, discipline, difficulty, isDaily, isChainQuest } = params;
   const cls = CHARACTER_CLASSES[characterClass];
   let xp = baseXp;
 
-  xp = Math.round(xp * getRealmBonus(characterClass, realm));
+  xp = Math.round(xp * getDisciplineBonus(characterClass, discipline));
 
   switch (cls.perk) {
     case "hard_quest_bonus":
