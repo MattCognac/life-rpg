@@ -33,9 +33,8 @@ export default async function EditChainPage({
   const skillProps = skills.map((s) => ({
     id: s.id,
     name: s.name,
-    color: s.color,
     discipline: s.discipline,
-    children: s.children.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+    children: s.children.map((c) => ({ id: c.id, name: c.name })),
   }));
 
   return (

@@ -5,11 +5,8 @@ import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/types";
 import { checkAchievements } from "@/lib/achievements";
 import { getAuthUser } from "@/lib/auth";
-import { getDisciplineBySlug, isValidDiscipline } from "@/lib/disciplines";
+import { isValidDiscipline } from "@/lib/disciplines";
 
-function colorForDiscipline(slug: string): string {
-  return getDisciplineBySlug(slug)?.color ?? "#dd6119";
-}
 import { propagateXpToParent } from "@/lib/xp-operations";
 
 export { propagateXpToParent };
@@ -45,7 +42,6 @@ export async function createSkill(input: {
             name: input.skillName.trim(),
             discipline: input.discipline,
             icon: input.icon ?? "Sword",
-            color: colorForDiscipline(input.discipline),
           },
         });
       } catch (err) {
@@ -88,7 +84,6 @@ export async function createSkill(input: {
           name: input.specializationName!.trim(),
           parentId: skill.id,
           icon: input.icon ?? skill.icon,
-          color: skill.color,
         },
       });
 
@@ -132,7 +127,6 @@ export async function updateSkill(
     if (input.icon !== undefined) data.icon = input.icon;
     if (input.discipline !== undefined && !existing.parentId) {
       data.discipline = input.discipline;
-      data.color = colorForDiscipline(input.discipline);
     }
 
     await db.skill.update({ where: { id }, data });
@@ -185,6 +179,95 @@ export async function deleteSkill(id: string): Promise<ActionResult> {
       success: false,
       error: "Failed to delete skill",
     };
+  }
+}
+
+/** Nest a top-level skill under another skill as a specialization. */
+export async function reparentSkill(
+  skillId: string,
+  newParentId: string,
+): Promise<ActionResult> {
+  try {
+    const userId = await getAuthUser();
+
+    const [skill, newParent] = await Promise.all([
+      db.skill.findFirst({
+        where: { id: skillId, userId },
+        include: { children: true },
+      }),
+      db.skill.findFirst({
+        where: { id: newParentId, userId, parentId: null },
+      }),
+    ]);
+
+    if (!skill) return { success: false, error: "Skill not found" };
+    if (!newParent) return { success: false, error: "Target parent skill not found" };
+    if (skill.parentId) return { success: false, error: "Skill is already a specialization" };
+    if (skill.id === newParentId) return { success: false, error: "Cannot nest a skill under itself" };
+    if (skill.children.length > 0) {
+      return { success: false, error: "Cannot nest a skill that has specializations. Remove or move its specializations first." };
+    }
+
+    await db.skill.update({
+      where: { id: skillId },
+      data: { parentId: newParentId, discipline: null },
+    });
+
+    if (skill.totalXp > 0) {
+      await propagateXpToParent(skillId, skill.totalXp);
+    }
+
+    revalidatePath("/skills");
+    revalidatePath(`/skills/${skillId}`);
+    revalidatePath(`/skills/${newParentId}`);
+    revalidatePath("/character");
+    revalidatePath("/");
+    return { success: true };
+  } catch (err) {
+    console.error("reparentSkill failed:", err);
+    return { success: false, error: "Failed to nest skill" };
+  }
+}
+
+/** Promote a specialization to a top-level skill. */
+export async function unparentSkill(
+  skillId: string,
+  discipline: string,
+): Promise<ActionResult> {
+  try {
+    const userId = await getAuthUser();
+
+    if (!isValidDiscipline(discipline)) {
+      return { success: false, error: "Invalid discipline" };
+    }
+
+    const skill = await db.skill.findFirst({
+      where: { id: skillId, userId },
+    });
+
+    if (!skill) return { success: false, error: "Skill not found" };
+    if (!skill.parentId) return { success: false, error: "Skill is already a top-level skill" };
+
+    const oldParentId = skill.parentId;
+
+    if (skill.totalXp > 0) {
+      await propagateXpToParent(skillId, -skill.totalXp);
+    }
+
+    await db.skill.update({
+      where: { id: skillId },
+      data: { parentId: null, discipline },
+    });
+
+    revalidatePath("/skills");
+    revalidatePath(`/skills/${skillId}`);
+    revalidatePath(`/skills/${oldParentId}`);
+    revalidatePath("/character");
+    revalidatePath("/");
+    return { success: true };
+  } catch (err) {
+    console.error("unparentSkill failed:", err);
+    return { success: false, error: "Failed to promote skill" };
   }
 }
 

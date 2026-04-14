@@ -24,10 +24,10 @@ export default async function QuestDetailPage({
   const quest = await db.quest.findFirst({
     where: { id, userId },
     include: {
-      skill: { include: { parent: { select: { name: true, color: true } } } },
+      skill: { include: { parent: { select: { name: true, discipline: true } } } },
       chain: true,
       secondarySkills: {
-        include: { skill: { include: { parent: { select: { color: true } } } } },
+        include: { skill: { include: { parent: { select: { discipline: true } } } } },
       },
       completions: {
         orderBy: { completedAt: "desc" },

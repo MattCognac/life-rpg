@@ -26,9 +26,8 @@ interface Props {
   skills: Array<{
     id: string;
     name: string;
-    color: string;
     discipline?: string | null;
-    children?: Array<{ id: string; name: string; color: string }>;
+    children?: Array<{ id: string; name: string }>;
   }>;
   questNames?: string[];
 }

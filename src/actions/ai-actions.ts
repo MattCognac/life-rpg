@@ -10,7 +10,7 @@ import { SKILL_ICON_PRESETS } from "@/lib/constants";
 import { hasAnthropicKey } from "@/lib/env";
 import { checkCombinedRateLimit } from "@/lib/rate-limit";
 import { getAuthUser } from "@/lib/auth";
-import { DISCIPLINES, DISCIPLINE_SLUGS, getDisciplineBySlug } from "@/lib/disciplines";
+import { DISCIPLINES, DISCIPLINE_SLUGS } from "@/lib/disciplines";
 import type { ActionResult } from "@/types";
 
 const AI_GENERATE_LIMITS = [
@@ -175,6 +175,7 @@ ${skillTree}
 - Skill names should be plain, widely understood terms — the kind you'd see on a resume or in a course catalog.
 - Each skill is a SEPARATE XP TRACK. Splitting related activities across different skills fragments progress. Consolidate related activities under one skill.
 - **The "independent pursuit" test:** Before creating any new skill, ask: "Would this user independently pursue and grow this skill outside this chain?" If no — if the skill only exists as a support step, incidental action, or one-off task within the chain — tag the quest to the chain's core skill instead. A skill used by only 1 quest is almost always wrong.
+- **Existing parent skill check:** Before creating a new top-level skill, check whether it is clearly a sub-discipline of a skill the user already has. If the user already has "Motorcycling" and this chain is specifically about "Motorcycle Maintenance," do NOT create a new top-level skill called "Motorcycle Maintenance." Instead, use "Motorcycling" as the skill with "Maintenance" as the specialization. Apply this broadly: if the entire chain is focused on a narrow sub-area of an existing skill, nest the whole chain under that parent with a specialization rather than fragmenting into a new top-level skill.
 
 ### Skill Naming:
 A skill name must be a **craft, discipline, or activity you practice** — never an outcome, phase, quality, or vague umbrella.
@@ -192,13 +193,12 @@ A skill name must be a **craft, discipline, or activity you practice** — never
 Specializations are uncommon. A specialization must represent a genuinely distinct sub-discipline that someone could independently specialize in and that is meaningfully different from the parent skill's core practice.
 
 DO NOT create specializations for:
-- Techniques or fundamentals (e.g., "Form", "Stance" are just part of Archery)
-- Maintenance or upkeep (e.g., "Bow Tuning" is part of Archery)
-- Sub-aspects everyone practicing the skill would do
+- Techniques or fundamentals within the normal practice of a skill (e.g., "Form", "Stance" are just part of Archery)
+- Sub-aspects that everyone practicing the skill would do as a matter of course
 
 DO create specializations for:
-- Genuinely distinct branches (e.g., "Bow Hunting" under Hunting — distinct from rifle hunting)
-- Specialized sub-disciplines the user would independently identify with (e.g., "Olympic Lifting" under Weightlifting)
+- Genuinely distinct branches a practitioner would independently identify with (e.g., "Bow Hunting" under Hunting — distinct from rifle hunting; "Olympic Lifting" under Weightlifting)
+- A focused sub-area that is the ENTIRE subject of this chain AND the user already has the parent skill (e.g., if user has "Motorcycling" and the chain is specifically about learning to maintain a motorcycle, use skill="Motorcycling" + specialization="Maintenance" across all quests rather than creating a new top-level skill)
 
 A specialization should apply to multiple quests. If only 1 quest would use it, skip it. When in doubt, OMIT the specialization.
 
@@ -426,8 +426,6 @@ export async function saveGeneratedChain(
     for (const tuple of tuples) {
       const sKey = tuple.skillName.toLowerCase();
       if (!skillMap.has(sKey)) {
-        const color =
-          getDisciplineBySlug(tuple.discipline)?.color ?? "#dd6119";
         const icon = SKILL_ICON_PRESETS[presetIdx % SKILL_ICON_PRESETS.length];
         presetIdx++;
         const created = await db.skill.create({
@@ -435,7 +433,6 @@ export async function saveGeneratedChain(
             userId,
             name: tuple.skillName,
             discipline: tuple.discipline,
-            color,
             icon,
           },
         });
@@ -447,17 +444,12 @@ export async function saveGeneratedChain(
         const specKey = `${parentSkill.id}::${tuple.specializationName.toLowerCase()}`;
         if (!specMap.has(specKey)) {
           const parent = skillMap.get(sKey)!;
-          const parentRow = await db.skill.findFirst({
-            where: { id: parent.id, userId },
-          });
-          const specColor = parentRow?.color ?? "#dd6119";
           const created = await db.skill.create({
             data: {
               userId,
               name: tuple.specializationName,
               parentId: parent.id,
               icon: SKILL_ICON_PRESETS[presetIdx % SKILL_ICON_PRESETS.length],
-              color: specColor,
             },
           });
           presetIdx++;

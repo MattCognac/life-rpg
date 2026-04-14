@@ -4,13 +4,13 @@ import { XpBar } from "@/components/shared/xp-bar";
 import * as LucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
+import { colorForDiscipline } from "@/lib/skill-display";
 
 interface Props {
   skill: {
     id: string;
     name: string;
     icon: string;
-    color: string;
     totalXp: number;
     level: number;
     discipline?: string | null;
@@ -29,6 +29,7 @@ function getIcon(name: string): LucideIcon {
 export function SkillCard({ skill, href, specCount, parentName }: Props) {
   const { level, currentLevelXp, xpForNextLevel } = computeLevel(skill.totalXp);
   const Icon = getIcon(skill.icon);
+  const color = colorForDiscipline(skill.discipline);
 
   const body = (
     <div className="norse-card p-5 ember-hover group cursor-pointer h-full">
@@ -36,12 +37,12 @@ export function SkillCard({ skill, href, specCount, parentName }: Props) {
         <div
           className="w-12 h-12 flex items-center justify-center border"
           style={{
-            borderColor: `${skill.color}80`,
-            backgroundColor: `${skill.color}15`,
-            boxShadow: `0 0 20px ${skill.color}25`,
+            borderColor: `${color}80`,
+            backgroundColor: `${color}15`,
+            boxShadow: `0 0 20px ${color}25`,
           }}
         >
-          <Icon className="w-6 h-6" style={{ color: skill.color }} />
+          <Icon className="w-6 h-6" style={{ color }} />
         </div>
         <div className="flex-1 min-w-0">
           {parentName && (
@@ -69,7 +70,7 @@ export function SkillCard({ skill, href, specCount, parentName }: Props) {
       <XpBar
         current={currentLevelXp}
         max={xpForNextLevel}
-        color={skill.color}
+        color={color}
         showLabel={false}
       />
       <div className="flex justify-between text-[10px] font-body tracking-wider text-muted-foreground mt-1.5">

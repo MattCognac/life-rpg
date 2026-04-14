@@ -44,7 +44,6 @@ interface Props {
     id: string;
     name: string;
     icon: string;
-    color: string;
     discipline?: string | null;
     parentId?: string | null;
   };

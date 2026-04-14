@@ -25,7 +25,6 @@ interface SkillForWheel {
   id: string;
   name: string;
   icon: string;
-  color: string;
   totalXp: number;
   level: number;
   discipline?: string | null;

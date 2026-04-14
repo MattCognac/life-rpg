@@ -41,6 +41,7 @@ import {
   type SkillEditSnapshot,
   type SkillEditScope,
 } from "@/components/chains/skill-edit-popover";
+import { NestSkillPopover } from "@/components/chains/nest-skill-popover";
 
 const EXAMPLES = [
   {
@@ -226,33 +227,50 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
     name: string;
     discipline: string;
     questCount: number;
-    specs: { name: string; questCount: number }[];
+    secondaryCount: number;
+    specs: { name: string; questCount: number; secondaryCount: number }[];
   };
 
   const uniqueSkills = useMemo((): SkillEntry[] => {
     if (!generated) return [];
-    const map = new Map<string, { name: string; discipline: string; questCount: number; specs: Map<string, { name: string; questCount: number }> }>();
-    for (const q of generated.quests) {
-      if (!q.skillName.trim()) continue;
-      const key = q.skillName.toLowerCase();
+    type Acc = { name: string; discipline: string; questCount: number; secondaryCount: number; specs: Map<string, { name: string; questCount: number; secondaryCount: number }> };
+    const map = new Map<string, Acc>();
+
+    const touch = (name: string, discipline: string, specName: string | undefined, isSecondary: boolean) => {
+      const key = name.toLowerCase();
       let entry = map.get(key);
       if (!entry) {
-        entry = { name: q.skillName, discipline: q.discipline, questCount: 0, specs: new Map() };
+        entry = { name, discipline, questCount: 0, secondaryCount: 0, specs: new Map() };
         map.set(key, entry);
       }
-      entry.questCount++;
-      if (q.specializationName?.trim()) {
-        const specKey = q.specializationName.trim().toLowerCase();
-        const spec = entry.specs.get(specKey);
-        if (spec) {
-          spec.questCount++;
-        } else {
-          entry.specs.set(specKey, { name: q.specializationName.trim(), questCount: 1 });
+      if (isSecondary) entry.secondaryCount++;
+      else entry.questCount++;
+      const trimSpec = specName?.trim();
+      if (trimSpec) {
+        const specKey = trimSpec.toLowerCase();
+        let spec = entry.specs.get(specKey);
+        if (!spec) {
+          spec = { name: trimSpec, questCount: 0, secondaryCount: 0 };
+          entry.specs.set(specKey, spec);
+        }
+        if (isSecondary) spec.secondaryCount++;
+        else spec.questCount++;
+      }
+    };
+
+    for (const q of generated.quests) {
+      if (q.skillName.trim()) {
+        touch(q.skillName, q.discipline, q.specializationName, false);
+      }
+      for (const sec of q.secondarySkills ?? []) {
+        if (sec.skillName.trim()) {
+          touch(sec.skillName, sec.discipline, sec.specializationName, true);
         }
       }
     }
+
     return Array.from(map.values())
-      .sort((a, b) => b.questCount - a.questCount)
+      .sort((a, b) => (b.questCount + b.secondaryCount) - (a.questCount + a.secondaryCount))
       .map((e) => ({ ...e, specs: Array.from(e.specs.values()) }));
   }, [generated]);
 
@@ -267,6 +285,37 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
       .filter((d) => groups.has(d.slug))
       .map((d) => ({ discipline: d, skills: groups.get(d.slug)! }));
   }, [uniqueSkills]);
+
+  const nestSkillUnder = (
+    sourceName: string,
+    parentName: string,
+    parentDiscipline: string,
+    specName: string,
+  ) => {
+    const srcLower = sourceName.toLowerCase();
+    setGenerated((g) => {
+      if (!g) return g;
+      return {
+        ...g,
+        quests: g.quests.map((q) => {
+          let nq = { ...q, secondarySkills: q.secondarySkills?.map((s) => ({ ...s })) };
+          if (nq.skillName.toLowerCase() === srcLower) {
+            nq.skillName = parentName;
+            nq.discipline = parentDiscipline as typeof nq.discipline;
+            nq.specializationName = specName;
+          }
+          if (nq.secondarySkills?.length) {
+            nq.secondarySkills = nq.secondarySkills.map((sec) =>
+              sec.skillName.toLowerCase() === srcLower
+                ? { ...sec, skillName: parentName, discipline: parentDiscipline as typeof sec.discipline, specializationName: specName }
+                : sec,
+            );
+          }
+          return nq;
+        }),
+      };
+    });
+  };
 
   const removeSkillNameFromEntireChain = (skillName: string) => {
     const lower = skillName.toLowerCase();
@@ -704,6 +753,10 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                             disabled={isBusy}
                             onCommit={handlePrimaryCommit(i)}
                             onRemove={hasPrimary ? () => clearQuestPrimarySkill(i) : undefined}
+                            nestTargets={uniqueSkills.map((s) => ({ name: s.name, discipline: s.discipline }))}
+                            onNest={(parentName, parentDiscipline, specName) =>
+                              nestSkillUnder(quest.skillName, parentName, parentDiscipline, specName)
+                            }
                             trigger={
                               <button
                                 type="button"
@@ -746,6 +799,7 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                                 skillLabelForAll={sec.skillName}
                                 current={secCurrent}
                                 disabled={isBusy}
+                                primarySkillName={quest.skillName}
                                 onCommit={handleSecondaryCommit(i, j)}
                                 onRemove={() => removeQuestSecondarySkill(i, j)}
                                 trigger={
@@ -775,6 +829,7 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                                 specializationName: "",
                               }}
                               disabled={isBusy}
+                              primarySkillName={quest.skillName}
                               onCommit={({ next }) => appendQuestSecondary(i, next)}
                               trigger={
                                 <button
@@ -829,7 +884,7 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                         Skill breakdown
                       </div>
                       <p className="text-xs text-muted-foreground font-body">
-                        Counts are primary-skill uses per quest. Only disciplines that appear in this chain are shown.
+                        Skill uses per quest (primary and secondary). Only disciplines that appear in this chain are shown.
                       </p>
                     </div>
                     <button
@@ -884,11 +939,28 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                                           <span className="text-[10px] font-body text-foreground leading-tight line-clamp-2">
                                             {sk.name}
                                           </span>
-                                          <span className="text-[9px] text-muted-foreground tabular-nums ml-0.5">
-                                            ×{sk.questCount}
-                                          </span>
+                                          {sk.questCount > 0 && (
+                                            <span className="text-[9px] text-muted-foreground tabular-nums ml-0.5">
+                                              ×{sk.questCount}
+                                            </span>
+                                          )}
+                                          {sk.secondaryCount > 0 && (
+                                            <span className="text-[9px] text-gold/70 tabular-nums ml-0.5">
+                                              {sk.questCount > 0 ? "· " : ""}×{sk.secondaryCount} +50%
+                                            </span>
+                                          )}
                                           <PenLine className="w-2.5 h-2.5 inline ml-0.5 opacity-0 group-hover/ov:opacity-50 align-middle" />
                                         </button>
+                                      }
+                                    />
+                                    <NestSkillPopover
+                                      skillName={sk.name}
+                                      otherSkills={uniqueSkills
+                                        .filter((s) => s.name.toLowerCase() !== sk.name.toLowerCase())
+                                        .map((s) => ({ name: s.name, discipline: s.discipline }))}
+                                      disabled={isBusy}
+                                      onNest={(parentName, parentDiscipline, specName) =>
+                                        nestSkillUnder(sk.name, parentName, parentDiscipline, specName)
                                       }
                                     />
                                     <button
@@ -924,9 +996,16 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                                             <span className="text-[9px] text-muted-foreground">
                                               › {sp.name}
                                             </span>
-                                            <span className="text-[9px] text-muted-foreground/80 tabular-nums ml-0.5">
-                                              ×{sp.questCount}
-                                            </span>
+                                            {sp.questCount > 0 && (
+                                              <span className="text-[9px] text-muted-foreground/80 tabular-nums ml-0.5">
+                                                ×{sp.questCount}
+                                              </span>
+                                            )}
+                                            {sp.secondaryCount > 0 && (
+                                              <span className="text-[9px] text-gold/70 tabular-nums ml-0.5">
+                                                {sp.questCount > 0 ? "· " : ""}×{sp.secondaryCount} +50%
+                                              </span>
+                                            )}
                                             <PenLine className="w-2 h-2 inline ml-0.5 opacity-0 group-hover/sp:opacity-50 align-middle" />
                                           </button>
                                         }

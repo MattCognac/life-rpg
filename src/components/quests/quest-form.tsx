@@ -26,14 +26,14 @@ import { isDailyActiveToday, nextActiveLabel, scheduleLabel } from "@/lib/daily"
 import { cn } from "@/lib/utils";
 import { Check, Swords, Zap, Plus, X } from "lucide-react";
 import { SkillForm } from "@/components/skills/skill-form";
+import { colorForDiscipline } from "@/lib/skill-display";
 
 interface Skill {
   id: string;
   name: string;
-  color: string;
   discipline?: string | null;
   parentId?: string | null;
-  children?: Array<{ id: string; name: string; color: string }>;
+  children?: Array<{ id: string; name: string }>;
 }
 
 interface Chain {
@@ -97,11 +97,11 @@ export function QuestForm({
   );
 
   const allSkillsFlat = useMemo(() => {
-    const flat: Array<{ id: string; name: string; color: string; parentName?: string }> = [];
+    const flat: Array<{ id: string; name: string; discipline?: string | null; parentName?: string }> = [];
     for (const s of skills) {
-      flat.push({ id: s.id, name: s.name, color: s.color });
+      flat.push({ id: s.id, name: s.name, discipline: s.discipline });
       for (const child of s.children ?? []) {
-        flat.push({ id: child.id, name: child.name, color: child.color, parentName: s.name });
+        flat.push({ id: child.id, name: child.name, discipline: s.discipline, parentName: s.name });
       }
     }
     return flat;
@@ -300,7 +300,7 @@ export function QuestForm({
                 <div key={secId} className="flex items-center gap-2 px-3 py-1.5 border border-border bg-card text-sm">
                   <span
                     className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: s.color }}
+                    style={{ backgroundColor: colorForDiscipline(s.discipline) }}
                   />
                   <span className="font-display text-xs tracking-wider uppercase flex-1">
                     {s.parentName ? `${s.parentName} › ${s.name}` : s.name}

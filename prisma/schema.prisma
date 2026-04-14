@@ -26,7 +26,6 @@ model Skill {
   userId    String
   name      String
   icon      String   @default("sword")
-  color     String   @default("#dd6119")
   totalXp   Int      @default(0)
   level     Int      @default(1)
 

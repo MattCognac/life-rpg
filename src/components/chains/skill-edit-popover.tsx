@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { DISCIPLINES } from "@/lib/disciplines";
 import type { DisciplineSlug } from "@/lib/disciplines";
+import { Check, CornerDownRight, Trash2 } from "lucide-react";
 
 export type SkillEditScope = "quest" | "all";
 
@@ -23,16 +24,15 @@ export type SkillEditSnapshot = {
   specializationName: string;
 };
 
+type NestTarget = { name: string; discipline: string };
+
 type SkillEditPopoverProps = {
   trigger: React.ReactNode;
   disabled?: boolean;
   mode: "primary" | "secondary" | "add-secondary";
-  /** Current values from parent — snapshotted when popover opens */
   current: SkillEditSnapshot;
-  /** Shown next to “All quests with this skill” */
   skillLabelForAll?: string;
   showScope: boolean;
-  /** Hide scope radios and always apply as “all quests” (e.g. skill overview grid). */
   aggregateOnly?: boolean;
   defaultScope?: SkillEditScope;
   onCommit: (args: {
@@ -41,8 +41,11 @@ type SkillEditPopoverProps = {
     scope: SkillEditScope;
     mode: "primary" | "secondary" | "add-secondary";
   }) => void;
-  /** Secondary: remove this secondary. Primary: clear primary skill on this quest (path) or use overview delete for chain-wide. */
   onRemove?: () => void;
+  nestTargets?: NestTarget[];
+  onNest?: (parentName: string, parentDiscipline: string, specName: string) => void;
+  /** Primary skill name on this quest — prevents adding a duplicate secondary. */
+  primarySkillName?: string;
 };
 
 export function SkillEditPopover({
@@ -56,6 +59,9 @@ export function SkillEditPopover({
   defaultScope = "all",
   onCommit,
   onRemove,
+  nestTargets,
+  onNest,
+  primarySkillName,
 }: SkillEditPopoverProps) {
   const [open, setOpen] = useState(false);
   const [skillName, setSkillName] = useState("");
@@ -64,6 +70,14 @@ export function SkillEditPopover({
   const [scope, setScope] = useState<SkillEditScope>(defaultScope);
   const baselineRef = useRef<SkillEditSnapshot>(current);
   const skipCommitOnCloseRef = useRef(false);
+  const [nestOpen, setNestOpen] = useState(false);
+  const [nestParent, setNestParent] = useState<string | null>(null);
+  const [nestSpecName, setNestSpecName] = useState("");
+
+  const isDuplicateOfPrimary =
+    !!primarySkillName &&
+    !!skillName.trim() &&
+    skillName.trim().toLowerCase() === primarySkillName.toLowerCase();
 
   const flushCommit = useCallback(() => {
     const next: SkillEditSnapshot = {
@@ -71,24 +85,20 @@ export function SkillEditPopover({
       discipline,
       specializationName: spec.trim(),
     };
-    if (mode === "add-secondary") {
-      if (!next.skillName) return;
-      onCommit({
-        next,
-        baseline: baselineRef.current,
-        scope: "quest",
-        mode: "add-secondary",
-      });
+    if (!next.skillName) return;
+    if (
+      primarySkillName &&
+      next.skillName.toLowerCase() === primarySkillName.toLowerCase()
+    ) {
       return;
     }
-    if (!next.skillName) return;
     onCommit({
       next,
       baseline: baselineRef.current,
-      scope: aggregateOnly ? "all" : scope,
+      scope: mode === "add-secondary" ? "quest" : aggregateOnly ? "all" : scope,
       mode,
     });
-  }, [aggregateOnly, discipline, mode, onCommit, scope, skillName, spec]);
+  }, [aggregateOnly, discipline, mode, onCommit, primarySkillName, scope, skillName, spec]);
 
   const handleOpenChange = (next: boolean) => {
     if (next) {
@@ -104,6 +114,9 @@ export function SkillEditPopover({
       setScope(
         mode === "add-secondary" ? "quest" : aggregateOnly ? "all" : defaultScope,
       );
+      setNestOpen(false);
+      setNestParent(null);
+      setNestSpecName(snap.skillName);
     } else if (open && !skipCommitOnCloseRef.current) {
       flushCommit();
     }
@@ -111,11 +124,37 @@ export function SkillEditPopover({
     setOpen(next);
   };
 
+  const handleSaveClick = () => {
+    skipCommitOnCloseRef.current = true;
+    flushCommit();
+    setOpen(false);
+  };
+
   const handleRemoveClick = () => {
     skipCommitOnCloseRef.current = true;
     onRemove?.();
     setOpen(false);
   };
+
+  const handleNestConfirm = () => {
+    if (!nestParent || !nestSpecName.trim() || !onNest) return;
+    const target = nestTargets?.find((t) => t.name === nestParent);
+    if (!target) return;
+    skipCommitOnCloseRef.current = true;
+    onNest(target.name, target.discipline, nestSpecName.trim());
+    setOpen(false);
+  };
+
+  const availableNestTargets = nestTargets?.filter(
+    (t) => t.name.toLowerCase() !== skillName.toLowerCase(),
+  );
+
+  const showNest =
+    onNest &&
+    availableNestTargets &&
+    availableNestTargets.length > 0 &&
+    skillName.trim() &&
+    mode !== "add-secondary";
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange} modal={false}>
@@ -135,6 +174,11 @@ export function SkillEditPopover({
             placeholder={mode === "add-secondary" ? "e.g. Running" : undefined}
             disabled={disabled}
           />
+          {isDuplicateOfPrimary && (
+            <p className="text-[10px] text-destructive font-body">
+              This is already the primary skill on this quest.
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -227,30 +271,104 @@ export function SkillEditPopover({
           </p>
         )}
 
-        {onRemove && mode === "secondary" && (
-          <Button
+        {/* Nest link (shown when not in nest-expanded mode) */}
+        {showNest && !nestOpen && (
+          <button
             type="button"
-            variant="destructive"
-            size="sm"
-            className="w-full"
+            onClick={() => { setNestOpen(true); setNestSpecName(skillName); }}
             disabled={disabled}
-            onClick={handleRemoveClick}
+            className="w-full flex items-center gap-1.5 text-[10px] font-display uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors"
           >
-            Remove secondary skill
-          </Button>
+            <CornerDownRight className="w-3 h-3" />
+            Nest under another skill...
+          </button>
         )}
 
-        {onRemove && mode === "primary" && (
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            className="w-full"
-            disabled={disabled}
-            onClick={handleRemoveClick}
-          >
-            Remove primary skill
-          </Button>
+        {/* Nest expanded UI */}
+        {showNest && nestOpen && (
+          <div className="space-y-2 border-t border-border/50 pt-3">
+            <Label className="text-[10px] font-display uppercase tracking-wider text-muted-foreground">
+              Nest &ldquo;{skillName}&rdquo; under
+            </Label>
+            <Select value={nestParent ?? ""} onValueChange={(v) => setNestParent(v || null)}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Select a skill..." />
+              </SelectTrigger>
+              <SelectContent className="z-[70]">
+                {availableNestTargets.map((t) => (
+                  <SelectItem key={t.name} value={t.name}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {nestParent && (
+              <div className="space-y-2">
+                <Label className="text-[10px] font-display uppercase tracking-wider text-muted-foreground">
+                  Specialization name
+                </Label>
+                <Input
+                  value={nestSpecName}
+                  onChange={(e) => setNestSpecName(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder={skillName}
+                  disabled={disabled}
+                />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="flex-1"
+                onClick={() => { setNestOpen(false); setNestParent(null); }}
+              >
+                Cancel
+              </Button>
+              {nestParent && (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="flex-1"
+                  disabled={!nestSpecName.trim() || disabled}
+                  onClick={handleNestConfirm}
+                >
+                  <CornerDownRight className="w-3 h-3" />
+                  Nest
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Action row: Remove (left) + Save (right) — hidden when nest is expanded */}
+        {!nestOpen && (
+          <div className="flex gap-2">
+            {onRemove && (mode === "primary" || mode === "secondary") && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={disabled}
+                onClick={handleRemoveClick}
+                title={`Remove ${mode} skill`}
+                className="px-3"
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="sm"
+              className="flex-1"
+              disabled={disabled || !skillName.trim() || isDuplicateOfPrimary}
+              onClick={handleSaveClick}
+            >
+              <Check className="w-3 h-3" />
+              Save
+            </Button>
+          </div>
         )}
       </PopoverContent>
     </Popover>

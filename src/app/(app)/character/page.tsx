@@ -88,7 +88,6 @@ export default async function CharacterPage() {
         id: s.id,
         name: s.name,
         icon: s.icon,
-        color: s.color,
         totalXp: s.totalXp,
         level: s.level,
         discipline: s.discipline,

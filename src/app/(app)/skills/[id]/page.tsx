@@ -6,9 +6,12 @@ import { XpBar } from "@/components/shared/xp-bar";
 import { formatNumber } from "@/lib/utils";
 import { SkillForm } from "@/components/skills/skill-form";
 import { DeleteSkillButton } from "@/components/skills/delete-skill-button";
+import { ReparentSkillSelect } from "@/components/skills/reparent-skill-select";
+import { PromoteSkillButton } from "@/components/skills/promote-skill-button";
 import { BackButton } from "@/components/ui/back-button";
 import { Button } from "@/components/ui/button";
 import { getDisciplineBySlug } from "@/lib/disciplines";
+import { colorForDiscipline } from "@/lib/skill-display";
 import * as LucideIcons from "lucide-react";
 import { Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -55,6 +58,17 @@ export default async function SkillDetailPage({
 
   const { level, currentLevelXp, xpForNextLevel } = computeLevel(skill.totalXp);
   const Icon = getIcon(skill.icon);
+  const accentColor = isTopLevel
+    ? colorForDiscipline(skill.discipline)
+    : colorForDiscipline(skill.parent?.discipline ?? skill.discipline);
+
+  const otherTopLevelSkills = isTopLevel && skill.children.length === 0
+    ? await db.skill.findMany({
+        where: { userId, parentId: null, id: { not: skill.id } },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
 
   const totalQuestCount = await db.quest.count({
     where: {
@@ -78,12 +92,12 @@ export default async function SkillDetailPage({
           <div
             className="w-20 h-20 flex items-center justify-center border-2 flex-shrink-0"
             style={{
-              borderColor: `${skill.color}CC`,
-              backgroundColor: `${skill.color}15`,
-              boxShadow: `0 0 30px ${skill.color}40`,
+              borderColor: `${accentColor}CC`,
+              backgroundColor: `${accentColor}15`,
+              boxShadow: `0 0 30px ${accentColor}40`,
             }}
           >
-            <Icon className="w-10 h-10" style={{ color: skill.color }} />
+            <Icon className="w-10 h-10" style={{ color: accentColor }} />
           </div>
           <div className="flex-1">
             <div className="flex items-start justify-between gap-4">
@@ -111,7 +125,7 @@ export default async function SkillDetailPage({
                 )}
                 <h1
                   className="font-display text-3xl tracking-widest uppercase"
-                  style={{ color: skill.color }}
+                  style={{ color: accentColor }}
                 >
                   {skill.name}
                 </h1>
@@ -125,7 +139,6 @@ export default async function SkillDetailPage({
                     id: skill.id,
                     name: skill.name,
                     icon: skill.icon,
-                    color: skill.color,
                     discipline: skill.discipline,
                     parentId: skill.parentId,
                   }}
@@ -145,12 +158,20 @@ export default async function SkillDetailPage({
               <XpBar
                 current={currentLevelXp}
                 max={xpForNextLevel}
-                color={skill.color}
+                color={accentColor}
               />
             </div>
           </div>
         </div>
       </div>
+
+      {isTopLevel && skill.children.length === 0 && otherTopLevelSkills.length > 0 && (
+        <ReparentSkillSelect skillId={skill.id} targets={otherTopLevelSkills} />
+      )}
+
+      {!isTopLevel && (
+        <PromoteSkillButton skillId={skill.id} />
+      )}
 
       {isTopLevel && (
         <div>
@@ -183,7 +204,7 @@ export default async function SkillDetailPage({
                       <circle
                         cx="38" cy="38" r="34"
                         fill="none"
-                        stroke={child.color}
+                        stroke={accentColor}
                         strokeWidth="3"
                         strokeLinecap="round"
                         strokeDasharray={circumference}
@@ -194,19 +215,19 @@ export default async function SkillDetailPage({
                     <div
                       className="absolute inset-[6px] rounded-full border flex items-center justify-center group-hover:scale-105 transition-transform"
                       style={{
-                        borderColor: `${child.color}60`,
-                        backgroundColor: `${child.color}15`,
-                        boxShadow: `0 0 16px ${child.color}25`,
+                        borderColor: `${accentColor}60`,
+                        backgroundColor: `${accentColor}15`,
+                        boxShadow: `0 0 16px ${accentColor}25`,
                       }}
                     >
-                      <ChildIcon className="w-6 h-6" style={{ color: child.color }} />
+                      <ChildIcon className="w-6 h-6" style={{ color: accentColor }} />
                     </div>
                     <div
                       className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-display border"
                       style={{
-                        backgroundColor: `${child.color}25`,
-                        borderColor: `${child.color}60`,
-                        color: child.color,
+                        backgroundColor: `${accentColor}25`,
+                        borderColor: `${accentColor}60`,
+                        color: accentColor,
                       }}
                     >
                       {childLevel.level}
