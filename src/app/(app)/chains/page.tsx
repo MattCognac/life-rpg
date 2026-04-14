@@ -13,7 +13,7 @@ export default async function ChainsPage() {
   const chains = await db.questChain.findMany({
     where: { userId },
     include: { quests: { select: { status: true } } },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ starred: "desc" }, { starredAt: "desc" }, { createdAt: "desc" }],
   });
 
   return (

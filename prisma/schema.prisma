@@ -94,11 +94,14 @@ model QuestChain {
   name        String
   description String   @default("")
   tier        String   @default("common")
+  starred     Boolean  @default(false)
+  starredAt   DateTime?
   quests      Quest[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([userId])
+  @@index([userId, starred])
 }
 
 model QuestCompletion {

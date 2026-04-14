@@ -88,12 +88,12 @@ export default async function DailyPage({
             Show up each day. Build your streak. Reap the rewards.
           </p>
         </div>
-        <Link href="/daily/new">
-          <Button variant="ghost">
+        <Button variant="ghost" asChild>
+          <Link href="/daily/new">
             <Plus className="w-4 h-4" />
             New Daily
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
 
       {activeToday.length > 0 && (
@@ -152,16 +152,16 @@ export default async function DailyPage({
               : "Daily quests reset each day and build streaks. Create one by making a new quest and toggling the daily option."
           }
           action={
-            <Link href="/daily/new">
-              <Button variant="ghost">
+            <Button variant="ghost" asChild>
+              <Link href="/daily/new">
                 <Plus className="w-4 h-4" />
                 Create Daily
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {visibleQuests.map((quest) => {
             const isInactive = !isDailyActiveToday(quest.dailyCron);
             return (

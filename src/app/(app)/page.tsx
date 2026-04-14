@@ -18,6 +18,7 @@ import { formatNumber, startOfToday } from "@/lib/utils";
 import Link from "next/link";
 import { isDailyActiveToday, isCompletedToday } from "@/lib/daily";
 import { DISCIPLINES } from "@/lib/disciplines";
+import { getDashboardActiveQuests } from "@/lib/dashboard-active-quests";
 
 export const dynamic = "force-dynamic";
 
@@ -69,16 +70,7 @@ export default async function DashboardPage() {
     getCharacterForUser(userId),
     getXpHistory(userId),
     db.skill.findMany({ where: { userId, parentId: null }, orderBy: { totalXp: "desc" } }),
-    db.quest.findMany({
-      where: { userId, status: "active", isDaily: false },
-      include: {
-        chain: {
-          include: { quests: { select: { status: true } } },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
+    getDashboardActiveQuests(userId),
     db.quest.findMany({
       where: { userId, isDaily: true },
       include: {

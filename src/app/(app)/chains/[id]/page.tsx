@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { ChainProgress } from "@/components/chains/chain-progress";
 import { AddQuestToChain } from "@/components/chains/add-quest-to-chain";
 import { ChainMenu } from "@/components/chains/chain-menu";
+import { ChainStarButton } from "@/components/chains/chain-star-button";
 import { BackButton } from "@/components/ui/back-button";
 import { Badge } from "@/components/ui/badge";
 import { getChainTier } from "@/lib/disciplines";
@@ -56,12 +57,15 @@ export default async function ChainDetailPage({
               <h1 className="font-display text-2xl md:text-3xl tracking-wider uppercase text-gradient-gold w-fit">
                 {chain.name}
               </h1>
-              <ChainMenu
-                id={chain.id}
-                name={chain.name}
-                questCount={total}
-                completedCount={completed}
-              />
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <ChainStarButton chainId={chain.id} starred={chain.starred} />
+                <ChainMenu
+                  id={chain.id}
+                  name={chain.name}
+                  questCount={total}
+                  completedCount={completed}
+                />
+              </div>
             </div>
             {chain.description && (
               <p className="text-sm text-muted-foreground font-body mt-2">

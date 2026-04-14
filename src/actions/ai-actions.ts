@@ -6,11 +6,11 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { XP_BY_DIFFICULTY } from "@/lib/xp";
 import { revalidateApp } from "@/lib/revalidate";
-import { SKILL_COLOR_PRESETS, SKILL_ICON_PRESETS } from "@/lib/constants";
+import { SKILL_ICON_PRESETS } from "@/lib/constants";
 import { hasAnthropicKey } from "@/lib/env";
 import { checkCombinedRateLimit } from "@/lib/rate-limit";
 import { getAuthUser } from "@/lib/auth";
-import { DISCIPLINES, DISCIPLINE_SLUGS } from "@/lib/disciplines";
+import { DISCIPLINES, DISCIPLINE_SLUGS, getDisciplineBySlug } from "@/lib/disciplines";
 import type { ActionResult } from "@/types";
 
 const AI_GENERATE_LIMITS = [
@@ -426,7 +426,8 @@ export async function saveGeneratedChain(
     for (const tuple of tuples) {
       const sKey = tuple.skillName.toLowerCase();
       if (!skillMap.has(sKey)) {
-        const color = SKILL_COLOR_PRESETS[presetIdx % SKILL_COLOR_PRESETS.length];
+        const color =
+          getDisciplineBySlug(tuple.discipline)?.color ?? "#dd6119";
         const icon = SKILL_ICON_PRESETS[presetIdx % SKILL_ICON_PRESETS.length];
         presetIdx++;
         const created = await db.skill.create({
@@ -446,13 +447,17 @@ export async function saveGeneratedChain(
         const specKey = `${parentSkill.id}::${tuple.specializationName.toLowerCase()}`;
         if (!specMap.has(specKey)) {
           const parent = skillMap.get(sKey)!;
+          const parentRow = await db.skill.findFirst({
+            where: { id: parent.id, userId },
+          });
+          const specColor = parentRow?.color ?? "#dd6119";
           const created = await db.skill.create({
             data: {
               userId,
               name: tuple.specializationName,
               parentId: parent.id,
               icon: SKILL_ICON_PRESETS[presetIdx % SKILL_ICON_PRESETS.length],
-              color: SKILL_COLOR_PRESETS[presetIdx % SKILL_COLOR_PRESETS.length],
+              color: specColor,
             },
           });
           presetIdx++;

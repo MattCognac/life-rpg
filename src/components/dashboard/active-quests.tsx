@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DifficultyStars } from "@/components/quests/difficulty-stars";
 import { CompleteQuestButton } from "@/components/quests/complete-quest-button";
+import { ChainStarButton } from "@/components/chains/chain-star-button";
 import { AIChainGenerator } from "@/components/chains/ai-chain-generator";
 import { Button } from "@/components/ui/button";
 import { Swords, Plus, Sparkles, ArrowRight, Link2, Zap, Sun } from "lucide-react";
@@ -16,6 +17,7 @@ interface Quest {
   chain?: {
     id: string;
     name: string;
+    starred: boolean;
     quests: Array<{ status: string }>;
   } | null;
 }
@@ -49,7 +51,7 @@ export function ActiveQuests({ quests }: Props) {
         )}
       </div>
 
-      <div className="flex-1 min-h-0 pt-2 overflow-y-auto">
+      <div className="flex-1 min-h-0 pt-2 overflow-y-auto overflow-x-clip pr-2 pl-0.5">
         {quests.length === 0 ? (
           <div className="py-6 flex flex-col items-center gap-4 text-center">
             <Swords className="w-8 h-8 text-muted-foreground" />
@@ -74,19 +76,28 @@ export function ActiveQuests({ quests }: Props) {
         ) : (
           <div className="divide-y divide-border/50">
             {quests.map((quest) => (
-              <div key={quest.id} className="py-2.5">
+              <div key={quest.id} className="py-2.5 pr-1">
                 {quest.chain && (
-                  <div className="flex items-center gap-1.5 mb-1 text-[10px] font-display uppercase tracking-widest text-muted-foreground">
-                    <Link2 className="w-3 h-3 flex-shrink-0" />
-                    <Link
-                      href={`/chains/${quest.chain.id}`}
-                      className="hover:text-primary transition-colors truncate min-w-0"
-                    >
-                      {quest.chain.name} ({quest.chain.quests.filter((q) => q.status === "completed").length}/{quest.chain.quests.length})
-                    </Link>
+                  <div className="flex items-center gap-1.5 mb-1 min-w-0 text-[10px] font-display uppercase tracking-widest text-muted-foreground">
+                    <Link2 className="w-3 h-3 shrink-0" />
+                    <div className="flex min-w-0 flex-1 items-center gap-1">
+                      <Link
+                        href={`/chains/${quest.chain.id}`}
+                        className="min-w-0 truncate hover:text-primary transition-colors"
+                      >
+                        {quest.chain.name} (
+                        {quest.chain.quests.filter((q) => q.status === "completed").length}/
+                        {quest.chain.quests.length})
+                      </Link>
+                      <ChainStarButton
+                        chainId={quest.chain.id}
+                        starred={quest.chain.starred}
+                        inline
+                      />
+                    </div>
                   </div>
                 )}
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2 min-h-[2.25rem]">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     {quest.isDaily && <Sun className="w-3 h-3 text-gold flex-shrink-0" />}
                     <Link

@@ -21,7 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { SKILL_COLOR_PRESETS, SKILL_ICON_PRESETS } from "@/lib/constants";
+import { SKILL_ICON_PRESETS } from "@/lib/constants";
 import { DISCIPLINES, type DisciplineSlug } from "@/lib/disciplines";
 import { createSkill, updateSkill } from "@/actions/skill-actions";
 import { handleActionResult } from "@/components/shared/action-handler";
@@ -69,7 +69,6 @@ export function SkillForm({ skill, skills = [], trigger, onCreated, addSpecTo }:
   );
   const [specName, setSpecName] = useState("");
   const [icon, setIcon] = useState(skill?.icon ?? "Sword");
-  const [color, setColor] = useState(skill?.color ?? SKILL_COLOR_PRESETS[0]);
 
   const filteredSkills = useMemo(
     () => (discipline ? skills.filter((s) => s.discipline === discipline) : []),
@@ -81,7 +80,6 @@ export function SkillForm({ skill, skills = [], trigger, onCreated, addSpecTo }:
     setSkillName("");
     setSpecName("");
     setIcon("Sword");
-    setColor(SKILL_COLOR_PRESETS[0]);
   };
 
   const onSubmit = () => {
@@ -90,7 +88,6 @@ export function SkillForm({ skill, skills = [], trigger, onCreated, addSpecTo }:
         const result = await updateSkill(skill.id, {
           name: skillName,
           icon,
-          color,
           ...(skill.parentId ? {} : { discipline: discipline || undefined }),
         });
         handleActionResult(result);
@@ -105,7 +102,6 @@ export function SkillForm({ skill, skills = [], trigger, onCreated, addSpecTo }:
           skillName,
           specializationName: specName || undefined,
           icon,
-          color,
         });
         handleActionResult(result);
         if (result.success) {
@@ -158,6 +154,9 @@ export function SkillForm({ skill, skills = [], trigger, onCreated, addSpecTo }:
           })}
         </div>
       </TooltipProvider>
+      <p className="text-[10px] text-muted-foreground mt-2">
+        Skill color follows the discipline you choose.
+      </p>
     </div>
   );
 
@@ -246,24 +245,6 @@ export function SkillForm({ skill, skills = [], trigger, onCreated, addSpecTo }:
                   </button>
                 );
               })}
-            </div>
-          </div>
-
-          <div>
-            <Label>Color</Label>
-            <div className="mt-1.5 flex gap-2">
-              {SKILL_COLOR_PRESETS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setColor(c)}
-                  className={cn(
-                    "w-8 h-8 border-2 transition-all",
-                    color === c ? "border-foreground scale-110" : "border-transparent"
-                  )}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
             </div>
           </div>
         </div>

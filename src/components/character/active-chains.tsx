@@ -47,24 +47,24 @@ export function ActiveChains({ chains }: Props) {
 
             return (
               <Link key={chain.id} href={`/chains/${chain.id}`}>
-                <div className="group border border-border hover:border-primary/40 bg-card/50 p-3 transition-all">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-display text-sm tracking-wider uppercase text-foreground truncate">
-                        {chain.name}
-                      </span>
-                      {tier && (
-                        <Badge
-                          variant="outline"
-                          className="text-[8px] px-1.5 py-0 flex-shrink-0"
-                          style={{ borderColor: tier.color, color: tier.color }}
-                        >
-                          {tier.name}
-                        </Badge>
-                      )}
+                <div className="group border border-border hover:border-primary/40 bg-card/50 p-3.5 transition-all">
+                  {tier && (
+                    <div className="mb-2">
+                      <Badge
+                        variant="outline"
+                        className="text-[8px] px-1.5 py-0"
+                        style={{ borderColor: tier.color, color: tier.color }}
+                      >
+                        {tier.name}
+                      </Badge>
                     </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="font-display text-xs text-gold">
+                  )}
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <span className="font-display text-sm tracking-wider uppercase text-foreground line-clamp-2 min-w-0 flex-1">
+                      {chain.name}
+                    </span>
+                    <div className="flex items-center gap-1.5 flex-shrink-0 pt-0.5">
+                      <span className="font-display text-xs text-gold tabular-nums">
                         {chain.completed}/{chain.total}
                       </span>
                       <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />

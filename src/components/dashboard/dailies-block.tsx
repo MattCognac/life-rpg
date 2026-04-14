@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { CompleteQuestButton } from "@/components/quests/complete-quest-button";
-import { DifficultyStars } from "@/components/quests/difficulty-stars";
 import { Button } from "@/components/ui/button";
 import { Sun, Plus, ArrowRight, Check, Flame, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,7 +8,6 @@ interface Daily {
   id: string;
   title: string;
   xpReward: number;
-  difficulty: number;
 }
 
 interface DailyWithMeta {
@@ -62,15 +60,12 @@ export function DailiesBlock({ dailies, totalActive }: Props) {
       ) : (
         <div className="divide-y divide-border/50 pt-1 flex-1 min-h-0 overflow-y-auto">
           {dailies.map(({ quest, streak, completedToday }) => (
-            <div
-              key={quest.id}
-              className="flex items-center justify-between gap-2 py-2.5"
-            >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div key={quest.id} className="py-2.5">
+              <div className="flex items-center justify-between gap-2">
                 <Link
                   href={`/quests/${quest.id}`}
                   className={cn(
-                    "font-display text-sm tracking-wider uppercase truncate hover:text-primary transition-colors",
+                    "font-display text-sm tracking-wider uppercase truncate flex-1 min-w-0 hover:text-primary transition-colors",
                     completedToday
                       ? "text-muted-foreground line-through"
                       : "text-foreground"
@@ -78,30 +73,25 @@ export function DailiesBlock({ dailies, totalActive }: Props) {
                 >
                   {quest.title}
                 </Link>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <DifficultyStars difficulty={quest.difficulty} />
-                <div className="flex items-center gap-1 text-gold font-display">
-                  <Zap className="w-3 h-3" />
-                  <span className="text-sm">{quest.xpReward}</span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-1 text-gold font-display">
+                    <Zap className="w-3 h-3" />
+                    <span className="text-sm">{quest.xpReward}</span>
+                  </div>
+                  {streak && streak.currentStreak > 0 && (
+                    <div className="flex items-center gap-0.5 text-[10px] font-display text-orange-400">
+                      <Flame className="w-2.5 h-2.5" />
+                      {streak.currentStreak}
+                    </div>
+                  )}
+                  {completedToday ? (
+                    <div className="h-8 w-8 rounded-md bg-success/15 border border-success/40 flex items-center justify-center">
+                      <Check className="w-3.5 h-3.5 text-success" />
+                    </div>
+                  ) : (
+                    <CompleteQuestButton questId={quest.id} isDaily size="icon" />
+                  )}
                 </div>
-                {streak && streak.currentStreak > 0 && (
-                  <div className="flex items-center gap-0.5 text-[10px] font-display text-orange-400">
-                    <Flame className="w-2.5 h-2.5" />
-                    {streak.currentStreak}
-                  </div>
-                )}
-                {completedToday ? (
-                  <div className="w-7 h-7 rounded-md bg-success/15 border border-success/40 flex items-center justify-center">
-                    <Check className="w-3.5 h-3.5 text-success" />
-                  </div>
-                ) : (
-                  <CompleteQuestButton
-                    questId={quest.id}
-                    isDaily
-                    size="icon"
-                  />
-                )}
               </div>
             </div>
           ))}

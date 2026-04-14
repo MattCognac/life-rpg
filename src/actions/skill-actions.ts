@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/types";
 import { checkAchievements } from "@/lib/achievements";
 import { getAuthUser } from "@/lib/auth";
-import { isValidDiscipline } from "@/lib/disciplines";
+import { getDisciplineBySlug, isValidDiscipline } from "@/lib/disciplines";
+
+function colorForDiscipline(slug: string): string {
+  return getDisciplineBySlug(slug)?.color ?? "#dd6119";
+}
 import { propagateXpToParent } from "@/lib/xp-operations";
 
 export { propagateXpToParent };
@@ -15,7 +19,6 @@ export async function createSkill(input: {
   skillName: string;
   specializationName?: string;
   icon?: string;
-  color?: string;
 }): Promise<ActionResult<{ id: string }>> {
   try {
     const userId = await getAuthUser();
@@ -42,7 +45,7 @@ export async function createSkill(input: {
             name: input.skillName.trim(),
             discipline: input.discipline,
             icon: input.icon ?? "Sword",
-            color: input.color ?? "#dd6119",
+            color: colorForDiscipline(input.discipline),
           },
         });
       } catch (err) {
@@ -85,7 +88,7 @@ export async function createSkill(input: {
           name: input.specializationName!.trim(),
           parentId: skill.id,
           icon: input.icon ?? skill.icon,
-          color: input.color ?? skill.color,
+          color: skill.color,
         },
       });
 
@@ -113,7 +116,7 @@ export async function createSkill(input: {
 
 export async function updateSkill(
   id: string,
-  input: { name?: string; icon?: string; color?: string; discipline?: string }
+  input: { name?: string; icon?: string; discipline?: string }
 ): Promise<ActionResult> {
   try {
     const userId = await getAuthUser();
@@ -127,8 +130,10 @@ export async function updateSkill(
     const data: Record<string, unknown> = {};
     if (input.name !== undefined) data.name = input.name.trim();
     if (input.icon !== undefined) data.icon = input.icon;
-    if (input.color !== undefined) data.color = input.color;
-    if (input.discipline !== undefined && !existing.parentId) data.discipline = input.discipline;
+    if (input.discipline !== undefined && !existing.parentId) {
+      data.discipline = input.discipline;
+      data.color = colorForDiscipline(input.discipline);
+    }
 
     await db.skill.update({ where: { id }, data });
     revalidatePath("/skills");

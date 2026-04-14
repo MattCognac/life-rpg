@@ -67,6 +67,31 @@ export async function updateChain(
   }
 }
 
+export async function toggleChainStar(chainId: string): Promise<ActionResult> {
+  try {
+    const userId = await getAuthUser();
+    const chain = await db.questChain.findFirst({
+      where: { id: chainId, userId },
+    });
+    if (!chain) return { success: false, error: "Chain not found" };
+    const next = !chain.starred;
+    await db.questChain.update({
+      where: { id: chainId },
+      data: {
+        starred: next,
+        starredAt: next ? new Date() : null,
+      },
+    });
+    revalidatePath("/");
+    revalidatePath("/chains");
+    revalidatePath(`/chains/${chainId}`);
+    return { success: true };
+  } catch (err) {
+    console.error("toggleChainStar failed:", err);
+    return { success: false, error: "Failed to update chain" };
+  }
+}
+
 export async function deleteChain(id: string): Promise<ActionResult> {
   try {
     const userId = await getAuthUser();

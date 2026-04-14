@@ -71,8 +71,8 @@ export function ChainProgress({ quests }: Props) {
                   isActive && "border-primary/40"
                 )}
               >
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div className="flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0 space-y-1.5">
                     <div
                       className={cn(
                         "font-display text-sm md:text-base tracking-wider uppercase",
@@ -87,21 +87,19 @@ export function ChainProgress({ quests }: Props) {
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 text-gold font-display text-sm">
+                  <div className="flex items-center gap-1 text-gold font-display text-sm flex-shrink-0 self-start">
                     <Zap className="w-3 h-3" />
                     {quest.xpReward}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-border/50">
                   <DifficultyStars difficulty={quest.difficulty} />
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {isCompleted && (
                       <CompleteQuestButton questId={quest.id} completed size="sm" />
                     )}
-                    {isActive && (
-                      <CompleteQuestButton questId={quest.id} size="sm" />
-                    )}
+                    {isActive && <CompleteQuestButton questId={quest.id} size="sm" />}
                   </div>
                 </div>
               </div>

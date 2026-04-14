@@ -24,7 +24,10 @@ export default async function QuestsPage({
         isDaily: false,
         ...(filter === "all" ? {} : { status: filter }),
       },
-      include: { skill: { include: { parent: { select: { name: true } } } } },
+      include: {
+        skill: { include: { parent: { select: { name: true } } } },
+        chain: { select: { id: true, name: true } },
+      },
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     }),
     db.quest.groupBy({
