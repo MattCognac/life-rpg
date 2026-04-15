@@ -38,6 +38,7 @@ import { DISCIPLINES, getChainTier } from "@/lib/disciplines";
 import type { DisciplineSlug } from "@/lib/disciplines";
 import {
   SkillEditPopover,
+  type SkillOption,
   type SkillEditSnapshot,
   type SkillEditScope,
 } from "@/components/chains/skill-edit-popover";
@@ -286,6 +287,15 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
       .map((d) => ({ discipline: d, skills: groups.get(d.slug)! }));
   }, [uniqueSkills]);
 
+  const skillOptions = useMemo(
+    (): SkillOption[] =>
+      uniqueSkills.map((skill) => ({
+        name: skill.name,
+        discipline: skill.discipline as DisciplineSlug,
+      })),
+    [uniqueSkills],
+  );
+
   const nestSkillUnder = (
     sourceName: string,
     parentName: string,
@@ -326,17 +336,28 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
         ...g,
         quests: g.quests.map((q) => {
           let nq = { ...q };
+          const filteredSecondarySkills =
+            nq.secondarySkills?.filter((s) => s.skillName.toLowerCase() !== lower) ?? [];
           if (nq.skillName.toLowerCase() === lower) {
-            nq = {
-              ...nq,
-              skillName: "",
-              specializationName: undefined,
-              discipline: DEFAULT_DISCIPLINE,
-            };
-          }
-          if (nq.secondarySkills?.length) {
-            const filtered = nq.secondarySkills.filter((s) => s.skillName.toLowerCase() !== lower);
-            nq.secondarySkills = filtered.length > 0 ? filtered : undefined;
+            const [promoted, ...rest] = filteredSecondarySkills;
+            nq = promoted
+              ? {
+                  ...nq,
+                  skillName: promoted.skillName,
+                  specializationName: promoted.specializationName,
+                  discipline: promoted.discipline,
+                  secondarySkills: rest.length > 0 ? rest : undefined,
+                }
+              : {
+                  ...nq,
+                  skillName: "",
+                  specializationName: undefined,
+                  discipline: DEFAULT_DISCIPLINE,
+                  secondarySkills: undefined,
+                };
+          } else if (nq.secondarySkills?.length) {
+            nq.secondarySkills =
+              filteredSecondarySkills.length > 0 ? filteredSecondarySkills : undefined;
           }
           return nq;
         }),
@@ -348,12 +369,23 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
     setGenerated((g) => {
       if (!g) return g;
       const quests = [...g.quests];
-      quests[questIndex] = {
-        ...quests[questIndex],
-        skillName: "",
-        specializationName: undefined,
-        discipline: DEFAULT_DISCIPLINE,
-      };
+      const quest = { ...quests[questIndex] };
+      const [promoted, ...rest] = quest.secondarySkills ?? [];
+      quests[questIndex] = promoted
+        ? {
+            ...quest,
+            skillName: promoted.skillName,
+            specializationName: promoted.specializationName,
+            discipline: promoted.discipline,
+            secondarySkills: rest.length > 0 ? rest : undefined,
+          }
+        : {
+            ...quest,
+            skillName: "",
+            specializationName: undefined,
+            discipline: DEFAULT_DISCIPLINE,
+            secondarySkills: undefined,
+          };
       return { ...g, quests };
     });
   };
@@ -560,7 +592,7 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
         )}
       </DialogTrigger>
       <DialogContent
-        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="max-w-2xl max-h-[90vh] overflow-hidden"
         onPointerDownOutside={(e) => {
           if (isGenerating || generated) e.preventDefault();
         }}
@@ -568,6 +600,7 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
           if (isGenerating || generated) e.preventDefault();
         }}
       >
+        <div className="grid min-h-0 gap-4 overflow-y-auto overscroll-contain pr-1">
         {!generated && !isGenerating ? (
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -747,13 +780,14 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                           <SkillEditPopover
                             mode="primary"
                             showScope
-                            defaultScope="all"
+                            defaultScope="quest"
                             skillLabelForAll={quest.skillName || "skill"}
                             current={primaryCurrent}
+                            skillOptions={skillOptions}
                             disabled={isBusy}
                             onCommit={handlePrimaryCommit(i)}
                             onRemove={hasPrimary ? () => clearQuestPrimarySkill(i) : undefined}
-                            nestTargets={uniqueSkills.map((s) => ({ name: s.name, discipline: s.discipline }))}
+                            nestTargets={skillOptions}
                             onNest={(parentName, parentDiscipline, specName) =>
                               nestSkillUnder(quest.skillName, parentName, parentDiscipline, specName)
                             }
@@ -795,9 +829,10 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                                 key={j}
                                 mode="secondary"
                                 showScope
-                                defaultScope="all"
+                                defaultScope="quest"
                                 skillLabelForAll={sec.skillName}
                                 current={secCurrent}
+                                skillOptions={skillOptions}
                                 disabled={isBusy}
                                 primarySkillName={quest.skillName}
                                 onCommit={handleSecondaryCommit(i, j)}
@@ -828,6 +863,7 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                                 discipline: quest.discipline,
                                 specializationName: "",
                               }}
+                              skillOptions={skillOptions}
                               disabled={isBusy}
                               primarySkillName={quest.skillName}
                               onCommit={({ next }) => appendQuestSecondary(i, next)}
@@ -928,6 +964,7 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                                         discipline: sk.discipline as DisciplineSlug,
                                         specializationName: "",
                                       }}
+                                      skillOptions={skillOptions}
                                       disabled={isBusy}
                                       onCommit={handleAggregatedSkillCommit}
                                       trigger={
@@ -984,6 +1021,7 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                                           discipline: sk.discipline as DisciplineSlug,
                                           specializationName: sp.name,
                                         }}
+                                      skillOptions={skillOptions}
                                         disabled={isBusy}
                                         onCommit={handleAggregatedSkillCommit}
                                         skillLabelForAll={sk.name}
@@ -1113,6 +1151,7 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
             </DialogFooter>
           </div>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );

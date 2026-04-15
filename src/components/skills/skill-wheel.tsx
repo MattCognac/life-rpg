@@ -311,9 +311,7 @@ export function SkillWheel({ groups, onSelectionChange }: Props) {
                   className="absolute rounded-full transition-all duration-300"
                   style={{
                     inset: 4,
-                    backgroundColor: isHovered
-                      ? "hsl(var(--primary) / 0.06)"
-                      : "hsl(var(--card))",
+                    backgroundColor: "hsl(var(--card))",
                     boxShadow: isHovered
                       ? "0 0 22px hsl(var(--primary) / 0.2), inset 0 0 12px hsl(var(--primary) / 0.06)"
                       : `0 0 14px hsl(var(--primary) / ${dimmed ? "0.03" : "0.08"})`,

@@ -24,6 +24,11 @@ export type SkillEditSnapshot = {
   specializationName: string;
 };
 
+export type SkillOption = {
+  name: string;
+  discipline: DisciplineSlug;
+};
+
 type NestTarget = { name: string; discipline: string };
 
 type SkillEditPopoverProps = {
@@ -35,6 +40,7 @@ type SkillEditPopoverProps = {
   showScope: boolean;
   aggregateOnly?: boolean;
   defaultScope?: SkillEditScope;
+  skillOptions?: SkillOption[];
   onCommit: (args: {
     next: SkillEditSnapshot;
     baseline: SkillEditSnapshot;
@@ -48,6 +54,12 @@ type SkillEditPopoverProps = {
   primarySkillName?: string;
 };
 
+function findSkillOption(skillOptions: SkillOption[] | undefined, skillName: string) {
+  const normalizedName = skillName.trim().toLowerCase();
+  if (!normalizedName) return undefined;
+  return skillOptions?.find((option) => option.name.toLowerCase() === normalizedName);
+}
+
 export function SkillEditPopover({
   trigger,
   disabled,
@@ -57,6 +69,7 @@ export function SkillEditPopover({
   showScope,
   aggregateOnly = false,
   defaultScope = "all",
+  skillOptions,
   onCommit,
   onRemove,
   nestTargets,
@@ -69,20 +82,28 @@ export function SkillEditPopover({
   const [spec, setSpec] = useState("");
   const [scope, setScope] = useState<SkillEditScope>(defaultScope);
   const baselineRef = useRef<SkillEditSnapshot>(current);
-  const skipCommitOnCloseRef = useRef(false);
+  const [skillSource, setSkillSource] = useState<"existing" | "new">("new");
+  const [selectedSkillName, setSelectedSkillName] = useState("");
   const [nestOpen, setNestOpen] = useState(false);
   const [nestParent, setNestParent] = useState<string | null>(null);
   const [nestSpecName, setNestSpecName] = useState("");
+  const selectedSkillOption =
+    skillSource === "existing" ? findSkillOption(skillOptions, selectedSkillName) : undefined;
+  const resolvedSkillName =
+    skillSource === "existing" ? (selectedSkillOption?.name ?? "") : skillName.trim();
+  const resolvedDiscipline =
+    skillSource === "existing" ? (selectedSkillOption?.discipline ?? discipline) : discipline;
+  const hasSkillOptions = (skillOptions?.length ?? 0) > 0;
 
   const isDuplicateOfPrimary =
     !!primarySkillName &&
-    !!skillName.trim() &&
-    skillName.trim().toLowerCase() === primarySkillName.toLowerCase();
+    !!resolvedSkillName &&
+    resolvedSkillName.toLowerCase() === primarySkillName.toLowerCase();
 
   const flushCommit = useCallback(() => {
     const next: SkillEditSnapshot = {
-      skillName: skillName.trim(),
-      discipline,
+      skillName: resolvedSkillName,
+      discipline: resolvedDiscipline,
       specializationName: spec.trim(),
     };
     if (!next.skillName) return;
@@ -98,7 +119,16 @@ export function SkillEditPopover({
       scope: mode === "add-secondary" ? "quest" : aggregateOnly ? "all" : scope,
       mode,
     });
-  }, [aggregateOnly, discipline, mode, onCommit, primarySkillName, scope, skillName, spec]);
+  }, [
+    aggregateOnly,
+    mode,
+    onCommit,
+    primarySkillName,
+    resolvedDiscipline,
+    resolvedSkillName,
+    scope,
+    spec,
+  ]);
 
   const handleOpenChange = (next: boolean) => {
     if (next) {
@@ -111,27 +141,31 @@ export function SkillEditPopover({
       setSkillName(snap.skillName);
       setDiscipline(snap.discipline);
       setSpec(snap.specializationName);
+      const matchingSkill = findSkillOption(skillOptions, snap.skillName);
+      setSkillSource(
+        matchingSkill || (hasSkillOptions && snap.skillName.trim() === "") ? "existing" : "new",
+      );
+      setSelectedSkillName(matchingSkill?.name ?? "");
       setScope(
         mode === "add-secondary" ? "quest" : aggregateOnly ? "all" : defaultScope,
       );
       setNestOpen(false);
       setNestParent(null);
       setNestSpecName(snap.skillName);
-    } else if (open && !skipCommitOnCloseRef.current) {
-      flushCommit();
     }
-    skipCommitOnCloseRef.current = false;
     setOpen(next);
   };
 
   const handleSaveClick = () => {
-    skipCommitOnCloseRef.current = true;
     flushCommit();
     setOpen(false);
   };
 
+  const handleCancelClick = () => {
+    setOpen(false);
+  };
+
   const handleRemoveClick = () => {
-    skipCommitOnCloseRef.current = true;
     onRemove?.();
     setOpen(false);
   };
@@ -140,20 +174,19 @@ export function SkillEditPopover({
     if (!nestParent || !nestSpecName.trim() || !onNest) return;
     const target = nestTargets?.find((t) => t.name === nestParent);
     if (!target) return;
-    skipCommitOnCloseRef.current = true;
     onNest(target.name, target.discipline, nestSpecName.trim());
     setOpen(false);
   };
 
   const availableNestTargets = nestTargets?.filter(
-    (t) => t.name.toLowerCase() !== skillName.toLowerCase(),
+    (t) => t.name.toLowerCase() !== resolvedSkillName.toLowerCase(),
   );
 
   const showNest =
     onNest &&
     availableNestTargets &&
     availableNestTargets.length > 0 &&
-    skillName.trim() &&
+    resolvedSkillName &&
     mode !== "add-secondary";
 
   return (
@@ -161,47 +194,115 @@ export function SkillEditPopover({
       <PopoverTrigger asChild disabled={disabled}>
         {trigger}
       </PopoverTrigger>
-      <PopoverContent className="w-80 space-y-3" align="start">
-        <div className="space-y-2">
-          <Label htmlFor="skill-edit-name" className="text-[10px] font-display uppercase tracking-wider text-muted-foreground">
-            Skill name
-          </Label>
-          <Input
-            id="skill-edit-name"
-            value={skillName}
-            onChange={(e) => setSkillName(e.target.value)}
-            className="h-8 text-xs"
-            placeholder={mode === "add-secondary" ? "e.g. Running" : undefined}
-            disabled={disabled}
-          />
-          {isDuplicateOfPrimary && (
-            <p className="text-[10px] text-destructive font-body">
-              This is already the primary skill on this quest.
-            </p>
-          )}
-        </div>
+      <PopoverContent className="w-80 max-h-[80vh] space-y-3 overflow-y-auto" align="start">
+        {hasSkillOptions && (
+          <fieldset className="space-y-2 border-0 p-0 m-0">
+            <legend className="text-[10px] font-display uppercase tracking-wider text-muted-foreground">
+              Skill source
+            </legend>
+            <div className="flex flex-col gap-2 text-xs font-body">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="skill-source"
+                  className="accent-primary"
+                  checked={skillSource === "existing"}
+                  onChange={() => setSkillSource("existing")}
+                  disabled={disabled}
+                />
+                <span>Use existing skill</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="skill-source"
+                  className="accent-primary"
+                  checked={skillSource === "new"}
+                  onChange={() => setSkillSource("new")}
+                  disabled={disabled}
+                />
+                <span>Create new skill</span>
+              </label>
+            </div>
+          </fieldset>
+        )}
 
-        <div className="space-y-2">
-          <Label className="text-[10px] font-display uppercase tracking-wider text-muted-foreground">
-            Discipline
-          </Label>
-          <Select
-            value={discipline}
-            onValueChange={(v) => setDiscipline(v as DisciplineSlug)}
-            disabled={disabled}
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="z-[70]">
-              {DISCIPLINES.map((d) => (
-                <SelectItem key={d.slug} value={d.slug}>
-                  <span style={{ color: d.color }}>{d.name}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {skillSource === "existing" && hasSkillOptions ? (
+          <div className="space-y-2">
+            <Label className="text-[10px] font-display uppercase tracking-wider text-muted-foreground">
+              Existing skill
+            </Label>
+            <Select
+              value={selectedSkillName}
+              onValueChange={setSelectedSkillName}
+              disabled={disabled}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Select a skill..." />
+              </SelectTrigger>
+              <SelectContent className="z-[70]">
+                {skillOptions?.map((option) => (
+                  <SelectItem key={option.name.toLowerCase()} value={option.name}>
+                    {option.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedSkillOption && (
+              <p className="text-[10px] text-muted-foreground font-body">
+                Discipline:{" "}
+                <span className="text-foreground">
+                  {DISCIPLINES.find((item) => item.slug === selectedSkillOption.discipline)?.name ??
+                    selectedSkillOption.discipline}
+                </span>
+              </p>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="skill-edit-name" className="text-[10px] font-display uppercase tracking-wider text-muted-foreground">
+                Skill name
+              </Label>
+              <Input
+                id="skill-edit-name"
+                value={skillName}
+                onChange={(e) => setSkillName(e.target.value)}
+                className="h-8 text-xs"
+                placeholder={mode === "add-secondary" ? "e.g. Running" : undefined}
+                disabled={disabled}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] font-display uppercase tracking-wider text-muted-foreground">
+                Discipline
+              </Label>
+              <Select
+                value={discipline}
+                onValueChange={(v) => setDiscipline(v as DisciplineSlug)}
+                disabled={disabled}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="z-[70]">
+                  {DISCIPLINES.map((d) => (
+                    <SelectItem key={d.slug} value={d.slug}>
+                      <span style={{ color: d.color }}>{d.name}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
+
+        {isDuplicateOfPrimary && (
+          <p className="text-[10px] text-destructive font-body">
+            This is already the primary skill on this quest.
+          </p>
+        )}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
@@ -275,7 +376,10 @@ export function SkillEditPopover({
         {showNest && !nestOpen && (
           <button
             type="button"
-            onClick={() => { setNestOpen(true); setNestSpecName(skillName); }}
+            onClick={() => {
+              setNestOpen(true);
+              setNestSpecName(resolvedSkillName);
+            }}
             disabled={disabled}
             className="w-full flex items-center gap-1.5 text-[10px] font-display uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors"
           >
@@ -288,7 +392,7 @@ export function SkillEditPopover({
         {showNest && nestOpen && (
           <div className="space-y-2 border-t border-border/50 pt-3">
             <Label className="text-[10px] font-display uppercase tracking-wider text-muted-foreground">
-              Nest &ldquo;{skillName}&rdquo; under
+              Nest &ldquo;{resolvedSkillName}&rdquo; under
             </Label>
             <Select value={nestParent ?? ""} onValueChange={(v) => setNestParent(v || null)}>
               <SelectTrigger className="h-8 text-xs">
@@ -311,7 +415,7 @@ export function SkillEditPopover({
                   value={nestSpecName}
                   onChange={(e) => setNestSpecName(e.target.value)}
                   className="h-8 text-xs"
-                  placeholder={skillName}
+                  placeholder={resolvedSkillName}
                   disabled={disabled}
                 />
               </div>
@@ -360,9 +464,18 @@ export function SkillEditPopover({
             )}
             <Button
               type="button"
+              variant="ghost"
               size="sm"
               className="flex-1"
-              disabled={disabled || !skillName.trim() || isDuplicateOfPrimary}
+              onClick={handleCancelClick}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="flex-1"
+              disabled={disabled || !resolvedSkillName || isDuplicateOfPrimary}
               onClick={handleSaveClick}
             >
               <Check className="w-3 h-3" />

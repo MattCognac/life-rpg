@@ -63,38 +63,40 @@ export function AddQuestToChain({
           Add Quest
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add Quest to Chain</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-hidden">
+        <div className="grid min-h-0 gap-4 overflow-y-auto overscroll-contain pr-1">
+          <DialogHeader>
+            <DialogTitle>Add Quest to Chain</DialogTitle>
+          </DialogHeader>
 
-        {nextOrder > 0 && (
-          <div>
-            <Label>Position</Label>
-            <Select
-              value={String(position)}
-              onValueChange={(v) => setPosition(Number(v))}
-            >
-              <SelectTrigger className="mt-1.5">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {positionOptions.map((i) => (
-                  <SelectItem key={i} value={String(i)}>
-                    {positionLabel(i)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+          {nextOrder > 0 && (
+            <div>
+              <Label>Position</Label>
+              <Select
+                value={String(position)}
+                onValueChange={(v) => setPosition(Number(v))}
+              >
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {positionOptions.map((i) => (
+                    <SelectItem key={i} value={String(i)}>
+                      {positionLabel(i)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-        <QuestForm
-          skills={skills}
-          defaultChainId={chainId}
-          defaultChainOrder={position}
-          onDone={() => setOpen(false)}
-        />
+          <QuestForm
+            skills={skills}
+            defaultChainId={chainId}
+            defaultChainOrder={position}
+            onDone={() => setOpen(false)}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );

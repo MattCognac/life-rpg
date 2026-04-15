@@ -31,23 +31,25 @@ const DialogContent = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed left-[50%] top-[50%] z-[51] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-primary/40 bg-card p-6 shadow-2xl will-change-transform data-[state=open]:animate-dialog-fade-in-up",
-        className
-      )}
-      style={{
-        boxShadow: "0 0 60px hsl(var(--primary) / 0.2)",
-      }}
-      {...props}
-    >
-      {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 text-muted-foreground hover:text-foreground transition-colors">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
+    <div className="pointer-events-none fixed inset-0 z-[51] flex items-center justify-center p-4">
+      <DialogPrimitive.Content
+        ref={ref}
+        className={cn(
+          "pointer-events-auto relative grid w-full max-w-lg max-h-[calc(100dvh-2rem)] gap-4 overflow-hidden border border-primary/40 bg-card p-6 shadow-2xl outline-none data-[state=open]:animate-fade-in-up",
+          className
+        )}
+        style={{
+          boxShadow: "0 0 60px hsl(var(--primary) / 0.2)",
+        }}
+        {...props}
+      >
+        {children}
+        <DialogPrimitive.Close className="absolute right-4 top-4 text-muted-foreground hover:text-foreground transition-colors">
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      </DialogPrimitive.Content>
+    </div>
   </DialogPortal>
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
