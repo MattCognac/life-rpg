@@ -142,7 +142,8 @@ export function QuestForm({
       }
       handleActionResult(result);
       if (result.success) {
-        if (!quest && isDaily && !isDailyActiveToday(dailyCron)) {
+        const clientTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (!quest && isDaily && !isDailyActiveToday(dailyCron, clientTz)) {
           toast({
             type: "default",
             title: "Daily Created",

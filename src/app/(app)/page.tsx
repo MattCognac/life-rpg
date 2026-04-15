@@ -14,7 +14,8 @@ import { LevelBadge } from "@/components/shared/level-badge";
 import { XpBar } from "@/components/shared/xp-bar";
 import { EditCharacter } from "@/components/character/edit-character";
 import { Zap, Swords, Flame, Trophy } from "lucide-react";
-import { formatNumber, startOfToday } from "@/lib/utils";
+import { formatNumber, startOfToday, formatDateLabel } from "@/lib/utils";
+import { getUserTimezone } from "@/lib/timezone";
 import Link from "next/link";
 import { isDailyActiveToday, isCompletedToday } from "@/lib/daily";
 import { DISCIPLINES } from "@/lib/disciplines";
@@ -22,10 +23,8 @@ import { getDashboardActiveQuests } from "@/lib/dashboard-active-quests";
 
 export const dynamic = "force-dynamic";
 
-async function getXpHistory(userId: string): Promise<Array<{ date: string; xp: number }>> {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  thirtyDaysAgo.setHours(0, 0, 0, 0);
+async function getXpHistory(userId: string, tz: string): Promise<Array<{ date: string; xp: number }>> {
+  const thirtyDaysAgo = new Date(startOfToday(tz).getTime() - 29 * 86_400_000);
 
   const completions = await db.questCompletion.findMany({
     where: { userId, completedAt: { gte: thirtyDaysAgo } },
@@ -34,17 +33,12 @@ async function getXpHistory(userId: string): Promise<Array<{ date: string; xp: n
 
   const byDay = new Map<string, number>();
   for (let i = 0; i < 30; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - (29 - i));
-    const key = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    byDay.set(key, 0);
+    const d = new Date(thirtyDaysAgo.getTime() + i * 86_400_000);
+    byDay.set(formatDateLabel(d, tz), 0);
   }
 
   for (const c of completions) {
-    const key = new Date(c.completedAt).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    });
+    const key = formatDateLabel(new Date(c.completedAt), tz);
     byDay.set(key, (byDay.get(key) ?? 0) + c.xpAwarded);
   }
 
@@ -53,6 +47,7 @@ async function getXpHistory(userId: string): Promise<Array<{ date: string; xp: n
 
 export default async function DashboardPage() {
   const userId = await getAuthUser();
+  const tz = await getUserTimezone();
 
   const [
     character,
@@ -68,7 +63,7 @@ export default async function DashboardPage() {
     recentAchievements,
   ] = await Promise.all([
     getCharacterForUser(userId),
-    getXpHistory(userId),
+    getXpHistory(userId, tz),
     db.skill.findMany({ where: { userId, parentId: null }, orderBy: { totalXp: "desc" } }),
     getDashboardActiveQuests(userId),
     db.quest.findMany({
@@ -76,7 +71,7 @@ export default async function DashboardPage() {
       include: {
         skill: true,
         completions: {
-          where: { completedAt: { gte: startOfToday() } },
+          where: { completedAt: { gte: startOfToday(tz) } },
           take: 1,
         },
       },
@@ -104,7 +99,7 @@ export default async function DashboardPage() {
   const characterClass = resolveClass(character.class);
   const classDef = CHARACTER_CLASSES[characterClass];
 
-  const activeDailies = dailyQuests.filter((q) => isDailyActiveToday(q.dailyCron));
+  const activeDailies = dailyQuests.filter((q) => isDailyActiveToday(q.dailyCron, tz));
   const streakByQuest = new Map(dailyStreaks.map((s) => [s.questId, s]));
 
   const disciplineXpMap = new Map<string, number>();
@@ -199,7 +194,7 @@ export default async function DashboardPage() {
             dailies={activeDailies.slice(0, 6).map((q) => ({
               quest: q,
               streak: streakByQuest.get(q.id) ?? null,
-              completedToday: isCompletedToday(q.completions[0]?.completedAt ?? null),
+              completedToday: isCompletedToday(q.completions[0]?.completedAt ?? null, tz),
             }))}
             totalActive={activeDailies.length}
           />

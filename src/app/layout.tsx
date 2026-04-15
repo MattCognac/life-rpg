@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { MusicToggle } from "@/components/shared/music-toggle";
 import { Toaster } from "@/components/shared/toaster";
+import { TimezoneProvider } from "@/components/shared/timezone-provider";
 
 const cinzel = Cinzel({
   subsets: ["latin"],
@@ -46,6 +47,7 @@ export default function RootLayout({
       <body
         className={`${cinzel.variable} ${cinzelDecorative.variable} ${inter.variable} ${norse.variable}`}
       >
+        <TimezoneProvider />
         {children}
         <Toaster />
         <MusicToggle />

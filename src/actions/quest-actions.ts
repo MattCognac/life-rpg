@@ -14,6 +14,7 @@ import { getCharacterForUser } from "@/lib/character";
 import { getAuthUser } from "@/lib/auth";
 import { isStreakBroken } from "@/lib/daily";
 import { startOfToday } from "@/lib/utils";
+import { getUserTimezone } from "@/lib/timezone";
 import { cleanupOrphanedSkill, propagateXpToParent } from "@/actions/skill-actions";
 import { CHAIN_TIER_BONUS, type ChainTier } from "@/lib/disciplines";
 import { revalidateApp } from "@/lib/revalidate";
@@ -297,6 +298,7 @@ export async function deleteQuest(id: string): Promise<ActionResult> {
 export async function completeQuest(id: string): Promise<ActionResult> {
   try {
     const userId = await getAuthUser();
+    const tz = await getUserTimezone();
     const quest = await db.quest.findFirst({
       where: { id, userId },
       include: {
@@ -320,7 +322,7 @@ export async function completeQuest(id: string): Promise<ActionResult> {
         where: {
           questId: id,
           userId,
-          completedAt: { gte: startOfToday() },
+          completedAt: { gte: startOfToday(tz) },
         },
       });
       if (existingToday) {
@@ -333,7 +335,7 @@ export async function completeQuest(id: string): Promise<ActionResult> {
       if (streak) {
         let newStreak: number;
         const graceDays = classDef.perk === "streak_grace" ? 1 : 0;
-        if (isStreakBroken(streak.lastCompleted, graceDays)) {
+        if (isStreakBroken(streak.lastCompleted, tz, graceDays)) {
           newStreak = 1;
         } else {
           newStreak = streak.currentStreak + 1;
@@ -523,6 +525,7 @@ export async function completeQuest(id: string): Promise<ActionResult> {
 export async function undoDailyCompletion(id: string): Promise<ActionResult> {
   try {
     const userId = await getAuthUser();
+    const tz = await getUserTimezone();
     const quest = await db.quest.findFirst({
       where: { id, userId },
       include: { skill: true },
@@ -535,7 +538,7 @@ export async function undoDailyCompletion(id: string): Promise<ActionResult> {
       where: {
         questId: id,
         userId,
-        completedAt: { gte: startOfToday() },
+        completedAt: { gte: startOfToday(tz) },
       },
       orderBy: { completedAt: "desc" },
     });

@@ -33,20 +33,72 @@ export function formatNumber(n: number): string {
   return n.toLocaleString();
 }
 
+
 /**
- * Start of today in local time.
+ * Get the current date parts (year, month, day, weekday) in a given timezone.
  */
-export function startOfToday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
+function nowInTimezone(tz: string): { year: number; month: number; day: number; weekday: number } {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+  });
+  const parts = Object.fromEntries(
+    fmt.formatToParts(new Date()).map((p) => [p.type, p.value]),
+  );
+  const weekdayMap: Record<string, number> = {
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+  };
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    weekday: weekdayMap[parts.weekday] ?? 0,
+  };
 }
 
 /**
- * Start of yesterday in local time.
+ * Compute the UTC offset (in ms) for a given timezone at a specific instant.
  */
-export function startOfYesterday(): Date {
-  const d = startOfToday();
-  d.setDate(d.getDate() - 1);
-  return d;
+function tzOffsetMs(tz: string, at: Date): number {
+  const utcStr = at.toLocaleString("en-US", { timeZone: "UTC" });
+  const tzStr = at.toLocaleString("en-US", { timeZone: tz });
+  return new Date(tzStr).getTime() - new Date(utcStr).getTime();
+}
+
+/**
+ * Start of today (midnight) in the user's timezone, returned as a UTC Date.
+ */
+export function startOfToday(tz: string): Date {
+  const { year, month, day } = nowInTimezone(tz);
+  const midnightUtcGuess = Date.UTC(year, month - 1, day);
+  const offset = tzOffsetMs(tz, new Date(midnightUtcGuess));
+  return new Date(midnightUtcGuess - offset);
+}
+
+/**
+ * Start of yesterday (midnight) in the user's timezone, returned as a UTC Date.
+ */
+export function startOfYesterday(tz: string): Date {
+  return new Date(startOfToday(tz).getTime() - 86_400_000);
+}
+
+/**
+ * Get the weekday number (0=Sun, 6=Sat) in the user's timezone.
+ */
+export function weekdayInTimezone(tz: string): number {
+  return nowInTimezone(tz).weekday;
+}
+
+/**
+ * Format a Date as a short date label (e.g. "Apr 14") in the user's timezone.
+ */
+export function formatDateLabel(date: Date, tz: string): string {
+  return date.toLocaleDateString("en-US", {
+    timeZone: tz,
+    month: "short",
+    day: "numeric",
+  });
 }

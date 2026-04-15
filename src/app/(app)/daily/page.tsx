@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Sun, Plus, Flame } from "lucide-react";
 import { isCompletedToday, isDailyActiveToday, isStreakBroken, scheduleLabel } from "@/lib/daily";
 import { startOfToday } from "@/lib/utils";
+import { getUserTimezone } from "@/lib/timezone";
 
 export const dynamic = "force-dynamic";
 
@@ -17,14 +18,14 @@ export default async function DailyPage({
   searchParams: Promise<{ view?: string }>;
 }) {
   const userId = await getAuthUser();
+  const tz = await getUserTimezone();
   const { view } = await searchParams;
   const filter = view ?? "today";
 
   const [, dailyQuests] = await Promise.all([
-    // Reset broken streaks (side-effect, no return value needed)
     db.dailyStreak.findMany({ where: { userId } }).then(async (allStreaks) => {
       const resets = allStreaks
-        .filter((s) => s.currentStreak > 0 && isStreakBroken(s.lastCompleted))
+        .filter((s) => s.currentStreak > 0 && isStreakBroken(s.lastCompleted, tz))
         .map((s) => db.dailyStreak.update({ where: { id: s.id }, data: { currentStreak: 0 } }));
       await Promise.all(resets);
     }),
@@ -33,7 +34,7 @@ export default async function DailyPage({
       include: {
         skill: true,
         completions: {
-          where: { completedAt: { gte: startOfToday() } },
+          where: { completedAt: { gte: startOfToday(tz) } },
           take: 1,
         },
       },
@@ -45,8 +46,8 @@ export default async function DailyPage({
   const streaks = await db.dailyStreak.findMany({ where: { userId } });
   const streakByQuest = new Map(streaks.map((s) => [s.questId, s]));
 
-  const activeToday = dailyQuests.filter((q) => isDailyActiveToday(q.dailyCron));
-  const inactiveToday = dailyQuests.filter((q) => !isDailyActiveToday(q.dailyCron));
+  const activeToday = dailyQuests.filter((q) => isDailyActiveToday(q.dailyCron, tz));
+  const inactiveToday = dailyQuests.filter((q) => !isDailyActiveToday(q.dailyCron, tz));
 
   const bestStreak = streaks.reduce(
     (max, s) => Math.max(max, s.currentStreak),
@@ -163,13 +164,13 @@ export default async function DailyPage({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {visibleQuests.map((quest) => {
-            const isInactive = !isDailyActiveToday(quest.dailyCron);
+            const isInactive = !isDailyActiveToday(quest.dailyCron, tz);
             return (
               <DailyQuestCard
                 key={quest.id}
                 quest={quest}
                 streak={streakByQuest.get(quest.id) ?? null}
-                completedToday={isCompletedToday(quest.completions[0]?.completedAt ?? null)}
+                completedToday={isCompletedToday(quest.completions[0]?.completedAt ?? null, tz)}
                 inactive={showInactive || (filter === "all" && isInactive)}
                 scheduleName={isInactive ? scheduleLabel(quest.dailyCron) : undefined}
               />

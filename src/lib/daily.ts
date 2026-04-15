@@ -1,13 +1,11 @@
-import { startOfToday, startOfYesterday } from "./utils";
+import { startOfToday, startOfYesterday, weekdayInTimezone } from "./utils";
 
 /**
  * Is this completion timestamp within today's window?
  */
-export function isCompletedToday(completedAt: Date | null | undefined): boolean {
+export function isCompletedToday(completedAt: Date | null | undefined, tz: string): boolean {
   if (!completedAt) return false;
-  const completed = new Date(completedAt);
-  completed.setHours(0, 0, 0, 0);
-  return completed.getTime() === startOfToday().getTime();
+  return new Date(completedAt).getTime() >= startOfToday(tz).getTime();
 }
 
 /**
@@ -16,21 +14,20 @@ export function isCompletedToday(completedAt: Date | null | undefined): boolean 
  */
 export function isStreakBroken(
   lastCompleted: Date | null | undefined,
+  tz: string,
   graceDays = 0,
 ): boolean {
-  if (!lastCompleted) return false; // never started != broken
-  const last = new Date(lastCompleted);
-  last.setHours(0, 0, 0, 0);
-  const cutoff = startOfYesterday().getTime() - graceDays * 86_400_000;
-  return last.getTime() < cutoff;
+  if (!lastCompleted) return false;
+  const cutoff = startOfYesterday(tz).getTime() - graceDays * 86_400_000;
+  return new Date(lastCompleted).getTime() < cutoff;
 }
 
 /**
  * Should this daily quest be available today based on its schedule?
  */
-export function isDailyActiveToday(dailyCron: string | null | undefined): boolean {
+export function isDailyActiveToday(dailyCron: string | null | undefined, tz: string): boolean {
   if (!dailyCron || dailyCron === "daily") return true;
-  const day = new Date().getDay(); // 0=Sun, 6=Sat
+  const day = weekdayInTimezone(tz);
   if (dailyCron === "weekdays") return day >= 1 && day <= 5;
   if (dailyCron === "weekends") return day === 0 || day === 6;
   return true;
