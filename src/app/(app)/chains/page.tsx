@@ -3,6 +3,7 @@ import { getAuthUser } from "@/lib/auth";
 import { ChainCard } from "@/components/chains/chain-card";
 import { ChainForm } from "@/components/chains/chain-form";
 import { AIChainGenerator } from "@/components/chains/ai-chain-generator";
+import { CompletedChainsSection } from "@/components/chains/completed-chains-section";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Link2 } from "lucide-react";
 
@@ -15,6 +16,13 @@ export default async function ChainsPage() {
     include: { quests: { select: { status: true } } },
     orderBy: [{ starred: "desc" }, { starredAt: "desc" }, { createdAt: "desc" }],
   });
+
+  const activeChains = chains.filter(
+    (c) => c.quests.length === 0 || c.quests.some((q) => q.status !== "completed")
+  );
+  const completedChains = chains.filter(
+    (c) => c.quests.length > 0 && c.quests.every((q) => q.status === "completed")
+  );
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -46,11 +54,17 @@ export default async function ChainsPage() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {chains.map((chain) => (
-            <ChainCard key={chain.id} chain={chain} />
-          ))}
-        </div>
+        <>
+          {activeChains.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activeChains.map((chain) => (
+                <ChainCard key={chain.id} chain={chain} />
+              ))}
+            </div>
+          )}
+
+          <CompletedChainsSection chains={completedChains} />
+        </>
       )}
     </div>
   );

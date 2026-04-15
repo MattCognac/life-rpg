@@ -87,7 +87,6 @@ export default async function CharacterPage() {
       .map((s) => ({
         id: s.id,
         name: s.name,
-        icon: s.icon,
         totalXp: s.totalXp,
         level: s.level,
         discipline: s.discipline,

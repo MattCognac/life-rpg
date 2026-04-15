@@ -14,33 +14,6 @@ export const DIFFICULTY_COLORS: Record<number, string> = {
   5: "#ff8201", // gold (Valheim)
 };
 
-export const SKILL_COLOR_PRESETS = [
-  "#dd6119", // Valheim orange
-  "#ad2817", // burnt red
-  "#ff8201", // fire gold
-  "#4ade80", // moss green
-  "#60a5fa", // ice blue
-  "#c084fc", // mystic purple
-  "#facc15", // sun yellow
-  "#f87171", // blood red
-];
-
-export const SKILL_ICON_PRESETS = [
-  "Sword",
-  "Shield",
-  "Dumbbell",
-  "Code",
-  "Book",
-  "Music",
-  "ChefHat",
-  "Palette",
-  "Brain",
-  "Heart",
-  "Mountain",
-  "Sparkles",
-  "Flame",
-  "Leaf",
-];
 
 export const QUEST_STATUSES = {
   ACTIVE: "active",

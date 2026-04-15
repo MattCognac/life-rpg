@@ -11,18 +11,11 @@ import { PromoteSkillButton } from "@/components/skills/promote-skill-button";
 import { BackButton } from "@/components/ui/back-button";
 import { Button } from "@/components/ui/button";
 import { getDisciplineBySlug } from "@/lib/disciplines";
-import { colorForDiscipline } from "@/lib/skill-display";
-import * as LucideIcons from "lucide-react";
+import { LevelRing } from "@/components/shared/level-ring";
 import { Plus } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
-
-function getIcon(name: string): LucideIcon {
-  const icons = LucideIcons as unknown as Record<string, LucideIcon>;
-  return icons[name] ?? LucideIcons.Sword;
-}
 
 export default async function SkillDetailPage({
   params,
@@ -56,11 +49,7 @@ export default async function SkillDetailPage({
       ? getDisciplineBySlug(skill.parent.discipline)
       : null;
 
-  const { level, currentLevelXp, xpForNextLevel } = computeLevel(skill.totalXp);
-  const Icon = getIcon(skill.icon);
-  const accentColor = isTopLevel
-    ? colorForDiscipline(skill.discipline)
-    : colorForDiscipline(skill.parent?.discipline ?? skill.discipline);
+  const { level, currentLevelXp, xpForNextLevel, progress } = computeLevel(skill.totalXp);
 
   const otherTopLevelSkills = isTopLevel && skill.children.length === 0
     ? await db.skill.findMany({
@@ -89,16 +78,7 @@ export default async function SkillDetailPage({
 
       <div className="norse-card p-6">
         <div className="flex items-start gap-5">
-          <div
-            className="w-20 h-20 flex items-center justify-center border-2 flex-shrink-0"
-            style={{
-              borderColor: `${accentColor}CC`,
-              backgroundColor: `${accentColor}15`,
-              boxShadow: `0 0 30px ${accentColor}40`,
-            }}
-          >
-            <Icon className="w-10 h-10" style={{ color: accentColor }} />
-          </div>
+          <LevelRing level={level} progress={progress} size="lg" />
           <div className="flex-1">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -123,10 +103,7 @@ export default async function SkillDetailPage({
                     )}
                   </div>
                 )}
-                <h1
-                  className="font-display text-3xl tracking-widest uppercase"
-                  style={{ color: accentColor }}
-                >
+                <h1 className="font-display text-3xl tracking-widest uppercase text-gradient-gold w-fit">
                   {skill.name}
                 </h1>
                 <div className="text-xs font-body tracking-widest uppercase text-muted-foreground mt-1">
@@ -138,7 +115,6 @@ export default async function SkillDetailPage({
                   skill={{
                     id: skill.id,
                     name: skill.name,
-                    icon: skill.icon,
                     discipline: skill.discipline,
                     parentId: skill.parentId,
                   }}
@@ -158,7 +134,6 @@ export default async function SkillDetailPage({
               <XpBar
                 current={currentLevelXp}
                 max={xpForNextLevel}
-                color={accentColor}
               />
             </div>
           </div>
@@ -180,58 +155,19 @@ export default async function SkillDetailPage({
           </h2>
           <div className="flex flex-wrap gap-4">
             {skill.children.map((child) => {
-              const ChildIcon = getIcon(child.icon);
               const childLevel = computeLevel(child.totalXp);
-              const pct = childLevel.xpForNextLevel > 0
-                ? (childLevel.currentLevelXp / childLevel.xpForNextLevel) * 100
-                : 0;
-              const circumference = 2 * Math.PI * 34;
-              const dashOffset = circumference - (pct / 100) * circumference;
               return (
                 <Link
                   key={child.id}
                   href={`/skills/${child.id}`}
                   className="group flex flex-col items-center gap-2 w-24"
                 >
-                  <div className="relative w-[76px] h-[76px]">
-                    <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 76 76">
-                      <circle
-                        cx="38" cy="38" r="34"
-                        fill="none"
-                        stroke="hsl(var(--border))"
-                        strokeWidth="3"
-                      />
-                      <circle
-                        cx="38" cy="38" r="34"
-                        fill="none"
-                        stroke={accentColor}
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={dashOffset}
-                        className="transition-all duration-500"
-                      />
-                    </svg>
-                    <div
-                      className="absolute inset-[6px] rounded-full border flex items-center justify-center group-hover:scale-105 transition-transform"
-                      style={{
-                        borderColor: `${accentColor}60`,
-                        backgroundColor: `${accentColor}15`,
-                        boxShadow: `0 0 16px ${accentColor}25`,
-                      }}
-                    >
-                      <ChildIcon className="w-6 h-6" style={{ color: accentColor }} />
-                    </div>
-                    <div
-                      className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-display border"
-                      style={{
-                        backgroundColor: `${accentColor}25`,
-                        borderColor: `${accentColor}60`,
-                        color: accentColor,
-                      }}
-                    >
-                      {childLevel.level}
-                    </div>
+                  <div className="group-hover:scale-105 transition-transform">
+                    <LevelRing
+                      level={childLevel.level}
+                      progress={childLevel.progress}
+                      size="md"
+                    />
                   </div>
                   <span className="text-[10px] font-display uppercase tracking-widest text-center text-muted-foreground group-hover:text-foreground transition-colors leading-tight">
                     {child.name}

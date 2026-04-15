@@ -1,10 +1,10 @@
 export const DISCIPLINES = [
-  { slug: "body", name: "Body", description: "Physical prowess & adventure", icon: "Sword", color: "#ad2817" },
-  { slug: "mind", name: "Mind", description: "Knowledge, technology & communication", icon: "Brain", color: "#60a5fa" },
-  { slug: "spirit", name: "Spirit", description: "Spirituality, mindfulness & inner growth", icon: "Sparkles", color: "#eab308" },
-  { slug: "nature", name: "Nature", description: "The living world & its bounty", icon: "Leaf", color: "#4ade80" },
-  { slug: "craft", name: "Craft", description: "Making, building & creating", icon: "Hammer", color: "#ff8201" },
-  { slug: "life", name: "Life", description: "Home, health, livelihood & self", icon: "Heart", color: "#c084fc" },
+  { slug: "body", name: "Body", description: "Physical prowess & adventure", icon: "Sword", color: "#dd6119" },
+  { slug: "mind", name: "Mind", description: "Knowledge, technology & communication", icon: "Brain", color: "#dd6119" },
+  { slug: "spirit", name: "Spirit", description: "Spirituality, mindfulness & inner growth", icon: "Sparkles", color: "#dd6119" },
+  { slug: "nature", name: "Nature", description: "The living world & its bounty", icon: "Leaf", color: "#dd6119" },
+  { slug: "craft", name: "Craft", description: "Making, building & creating", icon: "Hammer", color: "#dd6119" },
+  { slug: "life", name: "Life", description: "Home, health, livelihood & self", icon: "Heart", color: "#dd6119" },
 ] as const;
 
 export type DisciplineSlug = (typeof DISCIPLINES)[number]["slug"];
@@ -22,6 +22,7 @@ export function isValidDiscipline(slug: string): slug is DisciplineSlug {
 export const CHAIN_TIERS = [
   { slug: "common", name: "Common", color: "#9ca3af" },
   { slug: "uncommon", name: "Uncommon", color: "#4ade80" },
+  { slug: "rare", name: "Rare", color: "#60a5fa" },
   { slug: "epic", name: "Epic", color: "#c084fc" },
   { slug: "legendary", name: "Legendary", color: "#ff8201" },
 ] as const;
@@ -35,6 +36,7 @@ export function getChainTier(slug: string) {
 export const CHAIN_TIER_BONUS: Record<ChainTier, number> = {
   common: 0,
   uncommon: 0.1,
+  rare: 0.15,
   epic: 0.25,
   legendary: 0.5,
 };

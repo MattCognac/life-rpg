@@ -2,7 +2,15 @@
 
 import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import * as LucideIcons from "lucide-react";
+import {
+  Plus,
+  Sword,
+  Brain,
+  Sparkles,
+  Leaf,
+  Hammer,
+  Heart,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
   Dialog,
@@ -21,17 +29,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { SKILL_ICON_PRESETS } from "@/lib/constants";
 import { DISCIPLINES, type DisciplineSlug } from "@/lib/disciplines";
 import { createSkill, updateSkill } from "@/actions/skill-actions";
 import { handleActionResult } from "@/components/shared/action-handler";
 import { cn } from "@/lib/utils";
-import { Plus } from "lucide-react";
 
-function getIcon(name: string): LucideIcon {
-  const icons = LucideIcons as unknown as Record<string, LucideIcon>;
-  return icons[name] ?? LucideIcons.Sword;
-}
+const DISCIPLINE_ICONS: Record<string, LucideIcon> = {
+  Sword, Brain, Sparkles, Leaf, Hammer, Heart,
+};
 
 interface ExistingSkill {
   id: string;
@@ -43,7 +48,6 @@ interface Props {
   skill?: {
     id: string;
     name: string;
-    icon: string;
     discipline?: string | null;
     parentId?: string | null;
   };
@@ -67,7 +71,6 @@ export function SkillForm({ skill, skills = [], trigger, onCreated, addSpecTo }:
     addSpecTo?.skillName ?? (isEditing ? skill.name : "")
   );
   const [specName, setSpecName] = useState("");
-  const [icon, setIcon] = useState(skill?.icon ?? "Sword");
 
   const filteredSkills = useMemo(
     () => (discipline ? skills.filter((s) => s.discipline === discipline) : []),
@@ -78,7 +81,6 @@ export function SkillForm({ skill, skills = [], trigger, onCreated, addSpecTo }:
     setDiscipline("");
     setSkillName("");
     setSpecName("");
-    setIcon("Sword");
   };
 
   const onSubmit = () => {
@@ -86,7 +88,6 @@ export function SkillForm({ skill, skills = [], trigger, onCreated, addSpecTo }:
       if (isEditing) {
         const result = await updateSkill(skill.id, {
           name: skillName,
-          icon,
           ...(skill.parentId ? {} : { discipline: discipline || undefined }),
         });
         handleActionResult(result);
@@ -100,7 +101,6 @@ export function SkillForm({ skill, skills = [], trigger, onCreated, addSpecTo }:
           discipline,
           skillName,
           specializationName: specName || undefined,
-          icon,
         });
         handleActionResult(result);
         if (result.success) {
@@ -119,7 +119,7 @@ export function SkillForm({ skill, skills = [], trigger, onCreated, addSpecTo }:
       <TooltipProvider delayDuration={300}>
         <div className="mt-1.5 grid grid-cols-3 sm:grid-cols-6 gap-2">
           {DISCIPLINES.map((d) => {
-            const I = getIcon(d.icon);
+            const I = DISCIPLINE_ICONS[d.icon] ?? Sword;
             return (
               <Tooltip key={d.slug}>
                 <TooltipTrigger asChild>
@@ -223,29 +223,6 @@ export function SkillForm({ skill, skills = [], trigger, onCreated, addSpecTo }:
             </div>
           )}
 
-          <div>
-            <Label>Icon</Label>
-            <div className="mt-1.5 grid grid-cols-7 gap-2">
-              {SKILL_ICON_PRESETS.map((iconName) => {
-                const I = getIcon(iconName);
-                return (
-                  <button
-                    key={iconName}
-                    type="button"
-                    onClick={() => setIcon(iconName)}
-                    className={cn(
-                      "h-10 flex items-center justify-center border bg-card transition-all",
-                      icon === iconName
-                        ? "border-primary text-primary"
-                        : "border-border text-muted-foreground hover:border-primary/50"
-                    )}
-                  >
-                    <I className="w-4 h-4" />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
 
         <DialogFooter>

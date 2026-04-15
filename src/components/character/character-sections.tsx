@@ -15,7 +15,6 @@ interface DisciplineData {
 interface SkillForWheel {
   id: string;
   name: string;
-  icon: string;
   totalXp: number;
   level: number;
   discipline?: string | null;

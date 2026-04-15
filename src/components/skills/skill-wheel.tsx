@@ -1,16 +1,34 @@
 "use client";
 
 import { useState } from "react";
-import * as LucideIcons from "lucide-react";
+import {
+  Sword,
+  Brain,
+  Sparkles,
+  Leaf,
+  Hammer,
+  Heart,
+  ArrowLeft,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { SkillCard } from "@/components/skills/skill-card";
+import { LevelRing } from "@/components/shared/level-ring";
 import { cn } from "@/lib/utils";
 import { computeLevel } from "@/lib/xp";
-import { ArrowLeft } from "lucide-react";
 
-function getIcon(name: string): LucideIcon {
-  const icons = LucideIcons as unknown as Record<string, LucideIcon>;
-  return icons[name] ?? LucideIcons.Sword;
+const DISCIPLINE_ICONS: Record<string, LucideIcon> = {
+  Sword, Brain, Sparkles, Leaf, Hammer, Heart,
+};
+
+function getDisciplineIcon(name: string): LucideIcon {
+  return DISCIPLINE_ICONS[name] ?? Sword;
+}
+
+function disciplineProgress(skills: SkillForWheel[]): { avgLevel: number; avgProgress: number } {
+  if (skills.length === 0) return { avgLevel: 0, avgProgress: 0 };
+  const totalXp = skills.reduce((sum, sk) => sum + sk.totalXp, 0);
+  const { level, progress } = computeLevel(totalXp);
+  return { avgLevel: level, avgProgress: progress };
 }
 
 interface DisciplineData {
@@ -24,7 +42,6 @@ interface DisciplineData {
 interface SkillForWheel {
   id: string;
   name: string;
-  icon: string;
   totalXp: number;
   level: number;
   discipline?: string | null;
@@ -69,7 +86,8 @@ export function SkillWheel({ groups, onSelectionChange }: Props) {
   }
 
   if (selectedGroup) {
-    const Icon = getIcon(selectedGroup.discipline.icon);
+    const Icon = getDisciplineIcon(selectedGroup.discipline.icon);
+    const { avgLevel, avgProgress } = disciplineProgress(selectedGroup.skills);
     return (
       <div
         key={selectedGroup.discipline.slug}
@@ -86,18 +104,17 @@ export function SkillWheel({ groups, onSelectionChange }: Props) {
         </button>
 
         <div className="flex items-center gap-3 mb-5">
-          <div
-            className="w-10 h-10 rounded-full border-2 flex items-center justify-center"
-            style={{
-              borderColor: selectedGroup.discipline.color,
-              boxShadow: `0 0 16px ${selectedGroup.discipline.color}30`,
-            }}
-          >
-            <Icon
-              className="w-5 h-5"
-              style={{ color: selectedGroup.discipline.color }}
-            />
-          </div>
+          <LevelRing
+            level={avgLevel}
+            progress={avgProgress}
+            size="sm"
+            icon={
+              <Icon
+                className="w-full h-full"
+                style={{ color: selectedGroup.discipline.color }}
+              />
+            }
+          />
           <div>
             <h3
               className="font-display text-lg tracking-widest uppercase"
@@ -181,9 +198,9 @@ export function SkillWheel({ groups, onSelectionChange }: Props) {
                   y1={y1}
                   x2={x2}
                   y2={y2}
-                  stroke={discipline.color}
+                  stroke="hsl(var(--primary))"
                   strokeWidth={0.75}
-                  strokeOpacity={0.2}
+                  strokeOpacity={0.15}
                   strokeDasharray="4 4"
                 />
               );
@@ -209,21 +226,24 @@ export function SkillWheel({ groups, onSelectionChange }: Props) {
             </span>
           </div>
 
+          {/* Shared gradient for discipline rings */}
+          <svg className="absolute" width={0} height={0}>
+            <defs>
+              <linearGradient id="wheel-ring-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="hsl(10, 75%, 38%)" />
+                <stop offset="50%" stopColor="hsl(20, 78%, 48%)" />
+                <stop offset="100%" stopColor="hsl(32, 100%, 50%)" />
+              </linearGradient>
+            </defs>
+          </svg>
+
           {/* Discipline nodes */}
           {groups.map(({ discipline, skills }, i) => {
             const { x, y } = nodePosition(i);
             const isEmpty = skills.length === 0;
             const isHovered = hovered === discipline.slug;
-            const Icon = getIcon(discipline.icon);
-            const avgLevel =
-              skills.length > 0
-                ? Math.round(
-                    skills.reduce(
-                      (s, sk) => s + computeLevel(sk.totalXp).level,
-                      0
-                    ) / skills.length
-                  )
-                : 0;
+            const Icon = getDisciplineIcon(discipline.icon);
+            const { avgLevel, avgProgress } = disciplineProgress(skills);
 
             const dimmed = isEmpty;
             const baseContentColor = dimmed
@@ -233,6 +253,10 @@ export function SkillWheel({ groups, onSelectionChange }: Props) {
               ? discipline.color
               : baseContentColor;
 
+            const ringRadius = (NODE_SIZE - 4) / 2;
+            const ringCircumference = 2 * Math.PI * ringRadius;
+            const ringOffset = ringCircumference - avgProgress * ringCircumference;
+
             return (
               <button
                 key={discipline.slug}
@@ -240,7 +264,7 @@ export function SkillWheel({ groups, onSelectionChange }: Props) {
                 onMouseEnter={() => setHovered(discipline.slug)}
                 onMouseLeave={() => setHovered((current) => current === discipline.slug ? null : current)}
                 className={cn(
-                  "absolute z-10 rounded-full border-2 flex flex-col items-center justify-center transition-all duration-300",
+                  "absolute z-10 rounded-full flex flex-col items-center justify-center transition-all duration-300",
                   isHovered && "scale-110"
                 )}
                 style={{
@@ -248,41 +272,72 @@ export function SkillWheel({ groups, onSelectionChange }: Props) {
                   height: NODE_SIZE,
                   top: y - NODE_SIZE / 2,
                   left: x - NODE_SIZE / 2,
-                  borderColor: isHovered
-                    ? discipline.color
-                    : dimmed
-                      ? `${discipline.color}35`
-                      : `${discipline.color}70`,
-                  backgroundColor: isHovered
-                    ? `${discipline.color}10`
-                    : "hsl(var(--card))",
-                  boxShadow: isHovered
-                    ? `0 0 22px ${discipline.color}38, inset 0 0 12px ${discipline.color}12`
-                    : `0 0 14px ${discipline.color}${dimmed ? "08" : "18"}`,
                 }}
               >
-                <Icon
-                  className="w-7 h-7 mb-1"
-                  style={{ color: contentColor }}
-                />
-                <span
-                  className="text-[10px] font-display uppercase tracking-widest leading-tight"
-                  style={{ color: contentColor }}
+                {/* Progress ring SVG */}
+                <svg
+                  className="absolute inset-0 -rotate-90"
+                  width={NODE_SIZE}
+                  height={NODE_SIZE}
+                  viewBox={`0 0 ${NODE_SIZE} ${NODE_SIZE}`}
                 >
-                  {discipline.name}
-                </span>
-                {skills.length > 0 && (
+                  <circle
+                    cx={NODE_SIZE / 2}
+                    cy={NODE_SIZE / 2}
+                    r={ringRadius}
+                    fill="none"
+                    stroke={dimmed ? "hsl(var(--border) / 0.3)" : "hsl(var(--border))"}
+                    strokeWidth={3}
+                  />
+                  {avgProgress > 0 && (
+                    <circle
+                      cx={NODE_SIZE / 2}
+                      cy={NODE_SIZE / 2}
+                      r={ringRadius}
+                      fill="none"
+                      stroke="url(#wheel-ring-grad)"
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                      strokeDasharray={ringCircumference}
+                      strokeDashoffset={ringOffset}
+                      className="transition-all duration-500"
+                      style={{ filter: "drop-shadow(0 0 4px hsl(20 78% 48% / 0.4))" }}
+                    />
+                  )}
+                </svg>
+
+                {/* Background fill */}
+                <div
+                  className="absolute rounded-full transition-all duration-300"
+                  style={{
+                    inset: 4,
+                    backgroundColor: isHovered
+                      ? "hsl(var(--primary) / 0.06)"
+                      : "hsl(var(--card))",
+                    boxShadow: isHovered
+                      ? "0 0 22px hsl(var(--primary) / 0.2), inset 0 0 12px hsl(var(--primary) / 0.06)"
+                      : `0 0 14px hsl(var(--primary) / ${dimmed ? "0.03" : "0.08"})`,
+                  }}
+                />
+
+                {/* Content */}
+                <div className="relative z-10 flex flex-col items-center justify-center">
+                  <Icon
+                    className="w-7 h-7 mb-1"
+                    style={{ color: contentColor }}
+                  />
                   <span
-                    className="text-[9px] font-body leading-tight"
-                    style={{
-                      color: isHovered
-                        ? discipline.color
-                        : `${discipline.color}AA`,
-                    }}
+                    className="text-[10px] font-display uppercase tracking-widest leading-tight"
+                    style={{ color: contentColor }}
                   >
-                    Lv {avgLevel}
+                    {discipline.name}
                   </span>
-                )}
+                  {skills.length > 0 && (
+                    <span className="text-[9px] font-body leading-tight text-gold/70">
+                      Lv {avgLevel}
+                    </span>
+                  )}
+                </div>
               </button>
             );
           })}
@@ -290,35 +345,84 @@ export function SkillWheel({ groups, onSelectionChange }: Props) {
       </div>
 
       {/* Mobile: 3×2 grid */}
+      <svg className="absolute" width={0} height={0}>
+        <defs>
+          <linearGradient id="mobile-ring-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="hsl(10, 75%, 38%)" />
+            <stop offset="50%" stopColor="hsl(20, 78%, 48%)" />
+            <stop offset="100%" stopColor="hsl(32, 100%, 50%)" />
+          </linearGradient>
+        </defs>
+      </svg>
       <div className="grid grid-cols-3 gap-2 md:hidden">
         {groups.map(({ discipline, skills }) => {
-          const Icon = getIcon(discipline.icon);
+          const Icon = getDisciplineIcon(discipline.icon);
           const dimmed = skills.length === 0;
           const contentColor = dimmed
             ? `${discipline.color}50`
             : discipline.color;
+          const { avgLevel, avgProgress } = disciplineProgress(skills);
+
+          const mobileSize = 48;
+          const mobileRadius = (mobileSize - 3) / 2;
+          const mobileCircumference = 2 * Math.PI * mobileRadius;
+          const mobileOffset = mobileCircumference - avgProgress * mobileCircumference;
+
           return (
             <button
               key={discipline.slug}
               onClick={() => setSelected(discipline.slug)}
-              className="flex flex-col items-center gap-1 py-3 border transition-all"
-              style={{
-                borderColor: dimmed
-                  ? `${discipline.color}30`
-                  : "hsl(var(--border))",
-                backgroundColor: "hsl(var(--card))",
-              }}
+              className="flex flex-col items-center gap-1 py-3 border border-border transition-all"
+              style={{ backgroundColor: "hsl(var(--card))" }}
             >
-              <Icon
-                className="w-5 h-5"
-                style={{ color: contentColor }}
-              />
+              <div className="relative" style={{ width: mobileSize, height: mobileSize }}>
+                <svg
+                  className="absolute inset-0 -rotate-90"
+                  width={mobileSize}
+                  height={mobileSize}
+                  viewBox={`0 0 ${mobileSize} ${mobileSize}`}
+                >
+                  <circle
+                    cx={mobileSize / 2}
+                    cy={mobileSize / 2}
+                    r={mobileRadius}
+                    fill="none"
+                    stroke={dimmed ? "hsl(var(--border) / 0.3)" : "hsl(var(--border))"}
+                    strokeWidth={2.5}
+                  />
+                  {avgProgress > 0 && (
+                    <circle
+                      cx={mobileSize / 2}
+                      cy={mobileSize / 2}
+                      r={mobileRadius}
+                      fill="none"
+                      stroke="url(#mobile-ring-grad)"
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeDasharray={mobileCircumference}
+                      strokeDashoffset={mobileOffset}
+                      className="transition-all duration-500"
+                    />
+                  )}
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Icon
+                    className="w-5 h-5"
+                    style={{ color: contentColor }}
+                  />
+                </div>
+              </div>
               <span
                 className="text-[9px] font-display uppercase tracking-widest"
                 style={{ color: contentColor }}
               >
                 {discipline.name}
               </span>
+              {skills.length > 0 && (
+                <span className="text-[8px] font-body text-gold/70">
+                  Lv {avgLevel}
+                </span>
+              )}
             </button>
           );
         })}

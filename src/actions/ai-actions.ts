@@ -77,9 +77,9 @@ const GeneratedChainSchema = z.object({
     .max(300)
     .describe("1-2 sentence overview of the journey this chain represents"),
   tier: z
-    .enum(["common", "uncommon", "epic", "legendary"])
+    .enum(["common", "uncommon", "rare", "epic", "legendary"])
     .describe(
-      "Chain tier based on scope: common (1 skill), uncommon (2-3 skills), epic (4+ skills or 2+ disciplines), legendary (5+ skills across 3+ disciplines)"
+      "Chain tier based on scope: common (1 skill), uncommon (2-3 skills), rare (multi-week focused effort), epic (4+ skills or 2+ disciplines), legendary (5+ skills across 3+ disciplines)"
     ),
   quests: z
     .array(GeneratedQuestSchema)
@@ -218,6 +218,7 @@ Quest chains can and SHOULD span multiple skills and disciplines when the goal c
 Classify the chain tier based on ambition and scope. Tier reflects the scale of the journey, NOT skill count — never invent extra skills to justify a higher tier.
 - common: Small, short-term goal (e.g., "Read a book this month", "Organize my closet")
 - uncommon: Moderate goal requiring weeks of effort (e.g., "Learn to bake bread", "Run a 5K")
+- rare: Focused goal requiring several weeks of sustained practice (e.g., "Complete a 30-day fitness challenge", "Build a personal website")
 - epic: Ambitious goal requiring months of sustained effort, even if it's primarily one skill (e.g., "Run a marathon", "Learn to hunt")
 - legendary: Major life goal spanning many months or years, typically crossing multiple disciplines (e.g., "Start a homestead", "Build a cabin", "Earn a black belt")
 

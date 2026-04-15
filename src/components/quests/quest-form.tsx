@@ -26,7 +26,7 @@ import { isDailyActiveToday, nextActiveLabel, scheduleLabel } from "@/lib/daily"
 import { cn } from "@/lib/utils";
 import { Check, Swords, Zap, Plus, X } from "lucide-react";
 import { SkillForm } from "@/components/skills/skill-form";
-import { colorForDiscipline } from "@/lib/skill-display";
+
 
 interface Skill {
   id: string;
@@ -298,10 +298,7 @@ export function QuestForm({
               if (!s) return null;
               return (
                 <div key={secId} className="flex items-center gap-2 px-3 py-1.5 border border-border bg-card text-sm">
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: colorForDiscipline(s.discipline) }}
-                  />
+                  <span className="w-2 h-2 rounded-full flex-shrink-0 bg-muted-foreground/50" />
                   <span className="font-display text-xs tracking-wider uppercase flex-1">
                     {s.parentName ? `${s.parentName} › ${s.name}` : s.name}
                   </span>

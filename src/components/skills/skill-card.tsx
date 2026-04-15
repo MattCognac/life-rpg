@@ -1,16 +1,13 @@
 import Link from "next/link";
 import { computeLevel } from "@/lib/xp";
 import { XpBar } from "@/components/shared/xp-bar";
-import * as LucideIcons from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { LevelRing } from "@/components/shared/level-ring";
 import { formatNumber } from "@/lib/utils";
-import { colorForDiscipline } from "@/lib/skill-display";
 
 interface Props {
   skill: {
     id: string;
     name: string;
-    icon: string;
     totalXp: number;
     level: number;
     discipline?: string | null;
@@ -21,29 +18,13 @@ interface Props {
   parentName?: string;
 }
 
-function getIcon(name: string): LucideIcon {
-  const icons = LucideIcons as unknown as Record<string, LucideIcon>;
-  return icons[name] ?? LucideIcons.Sword;
-}
-
 export function SkillCard({ skill, href, specCount, parentName }: Props) {
-  const { level, currentLevelXp, xpForNextLevel } = computeLevel(skill.totalXp);
-  const Icon = getIcon(skill.icon);
-  const color = colorForDiscipline(skill.discipline);
+  const { level, currentLevelXp, xpForNextLevel, progress } = computeLevel(skill.totalXp);
 
   const body = (
     <div className="norse-card p-5 ember-hover group cursor-pointer h-full">
       <div className="flex items-start gap-3 mb-4">
-        <div
-          className="w-12 h-12 flex items-center justify-center border"
-          style={{
-            borderColor: `${color}80`,
-            backgroundColor: `${color}15`,
-            boxShadow: `0 0 20px ${color}25`,
-          }}
-        >
-          <Icon className="w-6 h-6" style={{ color }} />
-        </div>
+        <LevelRing level={level} progress={progress} size="sm" />
         <div className="flex-1 min-w-0">
           {parentName && (
             <div className="text-[9px] font-display uppercase tracking-widest text-muted-foreground mb-0.5">
@@ -62,15 +43,11 @@ export function SkillCard({ skill, href, specCount, parentName }: Props) {
             )}
           </div>
         </div>
-        <div className="font-display text-2xl text-gold">
-          {level}
-        </div>
       </div>
 
       <XpBar
         current={currentLevelXp}
         max={xpForNextLevel}
-        color={color}
         showLabel={false}
       />
       <div className="flex justify-between text-[10px] font-body tracking-wider text-muted-foreground mt-1.5">

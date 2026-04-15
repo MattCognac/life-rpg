@@ -211,6 +211,14 @@
     box-shadow: 0 0 12px hsl(var(--primary) / 0.6);
     transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   }
+  .xp-bar-fill-complete {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--success) / 0.7),
+      hsl(var(--success))
+    );
+    box-shadow: 0 0 8px hsl(var(--success) / 0.4);
+  }
   .xp-bar-fill::after {
     content: "";
     position: absolute;

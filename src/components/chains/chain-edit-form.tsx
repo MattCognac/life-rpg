@@ -99,7 +99,7 @@ export function ChainEditForm({ chain, quests }: Props) {
         </div>
         <div>
           <Label>Tier</Label>
-          <div className="mt-1.5 grid grid-cols-4 gap-2">
+          <div className="mt-1.5 grid grid-cols-5 gap-2">
             {CHAIN_TIERS.map((t) => (
               <button
                 key={t.slug}

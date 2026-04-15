@@ -7,7 +7,6 @@ import { BackButton } from "@/components/ui/back-button";
 import { DifficultyStars } from "@/components/quests/difficulty-stars";
 import { CompleteQuestButton } from "@/components/quests/complete-quest-button";
 import { DeleteQuestButton } from "@/components/quests/delete-quest-button";
-import { disciplineAccentColor } from "@/lib/skill-display";
 import { Zap, Lock, Sun, Link2, Pencil } from "lucide-react";
 import { relativeTime } from "@/lib/utils";
 
@@ -70,33 +69,20 @@ export default async function QuestDetailPage({
               </Link>
             )}
             {quest.skill && (
-              <Badge
-                variant="outline"
-                style={{
-                  borderColor: `${disciplineAccentColor(quest.skill)}80`,
-                  color: disciplineAccentColor(quest.skill),
-                }}
-              >
+              <Badge variant="outline">
                 {quest.skill.name}
               </Badge>
             )}
-            {quest.secondarySkills.map((qs) => {
-              const accent = disciplineAccentColor(qs.skill);
-              return (
-                <Badge
-                  key={qs.id}
-                  variant="outline"
-                  className="opacity-60"
-                  style={{
-                    borderColor: `${accent}50`,
-                    color: accent,
-                  }}
-                >
-                  {qs.skill.name}
-                  <span className="ml-1 text-[9px] opacity-70">+50% XP</span>
-                </Badge>
-              );
-            })}
+            {quest.secondarySkills.map((qs) => (
+              <Badge
+                key={qs.id}
+                variant="outline"
+                className="opacity-60"
+              >
+                {qs.skill.name}
+                <span className="ml-1 text-[9px] opacity-70">+50% XP</span>
+              </Badge>
+            ))}
           </div>
           <div className="flex flex-shrink-0 items-center gap-2 sm:justify-end">
             <Link href={`/quests/${quest.id}/edit`}>
