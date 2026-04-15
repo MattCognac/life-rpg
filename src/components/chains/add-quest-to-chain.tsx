@@ -64,7 +64,7 @@ export function AddQuestToChain({
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-hidden">
-        <div className="grid min-h-0 gap-4 overflow-y-auto overscroll-contain pr-1">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain pr-1">
           <DialogHeader>
             <DialogTitle>Add Quest to Chain</DialogTitle>
           </DialogHeader>

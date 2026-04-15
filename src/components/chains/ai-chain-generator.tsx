@@ -600,7 +600,7 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
           if (isGenerating || generated) e.preventDefault();
         }}
       >
-        <div className="grid min-h-0 gap-4 overflow-y-auto overscroll-contain pr-1">
+        <div className="scrollbar-none flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain pr-1">
         {!generated && !isGenerating ? (
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
