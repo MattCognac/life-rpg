@@ -6,7 +6,6 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { XP_BY_DIFFICULTY } from "@/lib/xp";
 import { revalidateApp } from "@/lib/revalidate";
-import { SKILL_ICON_PRESETS } from "@/lib/constants";
 import { hasAnthropicKey } from "@/lib/env";
 import { checkCombinedRateLimit } from "@/lib/rate-limit";
 import { getAuthUser } from "@/lib/auth";
@@ -19,6 +18,8 @@ const AI_GENERATE_LIMITS = [
 ];
 
 const AI_MODEL = "claude-sonnet-4-6";
+const AI_MAX_TOKENS = 12_000;
+const AI_TIMEOUT_MS = 150_000;
 
 const SecondarySkillSchema = z.object({
   discipline: z.enum(DISCIPLINE_SLUGS),
@@ -32,8 +33,9 @@ const GeneratedQuestSchema = z.object({
     .describe("Short imperative quest title, e.g. 'Research basic bow types'"),
   description: z
     .string()
+    .max(500)
     .describe(
-      "1-2 sentence description of what the user needs to do to complete this quest"
+      "1-3 sentence description of what the user needs to do to complete this quest"
     ),
   difficulty: z
     .number()
@@ -72,6 +74,7 @@ const GeneratedChainSchema = z.object({
     .describe("A punchy name for the chain, e.g. 'The Hunter's Path'"),
   chainDescription: z
     .string()
+    .max(300)
     .describe("1-2 sentence overview of the journey this chain represents"),
   tier: z
     .enum(["common", "uncommon", "epic", "legendary"])
@@ -167,7 +170,7 @@ ${skillTree}
 - **Building on each other.** Quest N+1 should naturally follow from completing quest N. The prerequisites of a later quest should be satisfied by completing earlier ones.
 - **Phase milestones.** Long chains naturally have distinct phases. Include milestone quests that mark the transition between phases — a satisfying "graduation" moment before the next chapter begins. These milestones should be higher difficulty to reflect the accomplishment.
 - **Specific titles.** Short and imperative. "Research bow types and pick one", "Hit a stationary target at 20 meters", "Field-dress a harvested animal".
-- **Practical descriptions.** 1-2 sentences explaining exactly what the user needs to do. No fluff.
+- **Practical descriptions.** Default to 1-2 sentences explaining exactly what the user needs to do. You may use up to 3 sentences if the user asks for more detail, but never more than that. Prioritize clarity and actionability over thoroughness.
 - **The final quest IS the goal.** The last quest in the chain should be the actual accomplishment the user asked for.
 
 ## Skill Rules
@@ -245,6 +248,12 @@ function checkAiPrerequisites<T>(userId: string): ActionResult<T> | null {
 }
 
 function handleAnthropicError<T>(err: unknown): ActionResult<T> {
+  if (err instanceof DOMException && err.name === "TimeoutError") {
+    return {
+      success: false,
+      error: "Generation timed out — try a simpler or shorter request.",
+    };
+  }
   if (err instanceof Anthropic.AuthenticationError) {
     return {
       success: false,
@@ -274,15 +283,20 @@ async function streamGeneratedChain(
   userContent: string,
   parseErrorMessage: string
 ): Promise<ActionResult<GeneratedChain>> {
-  const stream = client.messages.stream({
-    model: AI_MODEL,
-    max_tokens: 32000,
-    system: buildSystemPrompt(skillTree),
-    messages: [{ role: "user", content: userContent }],
-    output_config: {
-      format: zodOutputFormat(GeneratedChainSchema),
+  const abort = AbortSignal.timeout(AI_TIMEOUT_MS);
+
+  const stream = client.messages.stream(
+    {
+      model: AI_MODEL,
+      max_tokens: AI_MAX_TOKENS,
+      system: buildSystemPrompt(skillTree),
+      messages: [{ role: "user", content: userContent }],
+      output_config: {
+        format: zodOutputFormat(GeneratedChainSchema),
+      },
     },
-  });
+    { signal: abort },
+  );
 
   const response = await stream.finalMessage();
 
@@ -339,10 +353,10 @@ export async function refineQuestChain(
   if (!trimmedRefinement) {
     return { success: false, error: "Please describe what you'd like to change" };
   }
-  if (trimmedRefinement.length > 1000) {
+  if (trimmedRefinement.length > 500) {
     return {
       success: false,
-      error: "Refinement is too long. Keep it under 1000 characters.",
+      error: "Refinement is too long. Keep it under 500 characters.",
     };
   }
 
@@ -421,19 +435,14 @@ export async function saveGeneratedChain(
       }
     }
 
-    let presetIdx = existingSkills.length;
-
     for (const tuple of tuples) {
       const sKey = tuple.skillName.toLowerCase();
       if (!skillMap.has(sKey)) {
-        const icon = SKILL_ICON_PRESETS[presetIdx % SKILL_ICON_PRESETS.length];
-        presetIdx++;
         const created = await db.skill.create({
           data: {
             userId,
             name: tuple.skillName,
             discipline: tuple.discipline,
-            icon,
           },
         });
         skillMap.set(sKey, { id: created.id, name: created.name, discipline: tuple.discipline });
@@ -449,10 +458,8 @@ export async function saveGeneratedChain(
               userId,
               name: tuple.specializationName,
               parentId: parent.id,
-              icon: SKILL_ICON_PRESETS[presetIdx % SKILL_ICON_PRESETS.length],
             },
           });
-          presetIdx++;
           specMap.set(specKey, { id: created.id, name: created.name, parentId: parent.id });
         }
       }

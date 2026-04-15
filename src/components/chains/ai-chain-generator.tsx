@@ -1031,7 +1031,8 @@ export function AIChainGenerator({ children }: { children?: React.ReactNode }) {
                   <Textarea
                     id="refinement"
                     value={refinement}
-                    onChange={(e) => setRefinement(e.target.value)}
+                    onChange={(e) => setRefinement(e.target.value.slice(0, 500))}
+                    maxLength={500}
                     placeholder='e.g. "I already know the basics" or "Make the early steps more detailed"'
                     className="mt-1.5"
                     disabled={isRefining}
